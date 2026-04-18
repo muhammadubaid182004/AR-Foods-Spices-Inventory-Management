@@ -1,14 +1,14 @@
-import { mysqlTable, text, int, timestamp, decimal } from "drizzle-orm/mysql-core";
+import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const itemsTable = mysqlTable("items", {
-  id: int("id").primaryKey().autoincrement(),
+export const itemsTable = pgTable("items", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  minOrderQty: int("min_order_qty").notNull().default(1),
-  stockQuantity: int("stock_quantity").notNull().default(0),
+  unitPrice: text("unit_price").notNull(),
+  minOrderQty: serial("min_order_qty").notNull().default(1),
+  stockQuantity: serial("stock_quantity").notNull().default(0),
   category: text("category"),
   sku: text("sku"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

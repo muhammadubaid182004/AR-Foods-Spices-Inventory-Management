@@ -1,9 +1,9 @@
-import { mysqlTable, text, int, timestamp } from "drizzle-orm/mysql-core";
+import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const regionsTable = mysqlTable("regions", {
-  id: int("id").primaryKey().autoincrement(),
+export const regionsTable = pgTable("regions", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -1,9 +1,9 @@
-import { mysqlTable, text, int, timestamp } from "drizzle-orm/mysql-core";
+import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const usersTable = mysqlTable("users", {
-  id: int("id").primaryKey().autoincrement(),
+export const usersTable = pgTable("users", {
+  id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),

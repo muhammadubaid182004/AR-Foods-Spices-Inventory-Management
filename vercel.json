@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build:my-app",
+  "outputDirectory": "dist/public",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    }
+  ]
+}
