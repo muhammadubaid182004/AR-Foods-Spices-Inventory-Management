@@ -872,6 +872,8 @@ components:
           type: string
         notes:
           type: ["string", "null"]
+        placedAt:
+          type: string
         createdAt:
           type: string
         itemCount:
@@ -882,6 +884,7 @@ components:
         - totalAmount
         - status
         - notes
+        - placedAt
         - createdAt
         - itemCount
 
@@ -898,6 +901,8 @@ components:
           type: string
         notes:
           type: ["string", "null"]
+        placedAt:
+          type: string
         createdAt:
           type: string
         lineItems:
@@ -910,6 +915,7 @@ components:
         - totalAmount
         - status
         - notes
+        - placedAt
         - createdAt
         - lineItems
 

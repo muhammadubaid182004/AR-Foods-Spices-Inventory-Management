@@ -32,14 +32,15 @@ router.get("/dashboard/summary", requireAuth, async (_req, res): Promise<void> =
 });
 
 router.get("/dashboard/sales-over-time", requireAuth, async (_req, res): Promise<void> => {
+  const monthExpr = sql<string>`DATE_FORMAT(${ordersTable.placedAt}, '%Y-%m')`;
   const rows = await db
     .select({
-      month: sql<string>`TO_CHAR(${ordersTable.createdAt}, 'YYYY-MM')`,
+      month: monthExpr,
       sales: sql<string>`COALESCE(SUM(${ordersTable.totalAmount}), 0)`,
     })
     .from(ordersTable)
-    .groupBy(sql`TO_CHAR(${ordersTable.createdAt}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${ordersTable.createdAt}, 'YYYY-MM')`);
+    .groupBy(monthExpr)
+    .orderBy(monthExpr);
 
   res.json(rows.map(r => ({ month: r.month, sales: parseFloat(r.sales) })));
 });
@@ -84,16 +85,17 @@ router.get("/dashboard/region-sales-detail", requireAuth, async (req, res): Prom
 
   const { regionId } = parsed.data;
 
+  const monthExpr = sql<string>`DATE_FORMAT(${ordersTable.placedAt}, '%Y-%m')`;
   const rows = await db
     .select({
-      month: sql<string>`TO_CHAR(${ordersTable.createdAt}, 'YYYY-MM')`,
+      month: monthExpr,
       sales: sql<string>`COALESCE(SUM(${ordersTable.totalAmount}), 0)`,
     })
     .from(ordersTable)
     .innerJoin(shopsTable, eq(shopsTable.id, ordersTable.shopId))
     .where(eq(shopsTable.regionId, regionId))
-    .groupBy(sql`TO_CHAR(${ordersTable.createdAt}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${ordersTable.createdAt}, 'YYYY-MM')`);
+    .groupBy(monthExpr)
+    .orderBy(monthExpr);
 
   res.json(rows.map(r => ({ month: r.month, sales: parseFloat(r.sales) })));
 });

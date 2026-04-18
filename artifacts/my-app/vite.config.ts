@@ -5,30 +5,26 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+const parsedPort = rawPort ? Number(rawPort) : undefined;
+const port =
+  parsedPort !== undefined && Number.isFinite(parsedPort) && parsedPort > 0
+    ? parsedPort
+    : 5173;
+const basePath = process.env.BASE_PATH ?? "/";
+const apiPort = process.env.API_PORT ?? "3000";
 
 export default defineConfig({
   base: basePath,
   plugins: [
+    {
+      name: "log-dev-links",
+      configureServer(server) {
+        server.httpServer?.once("listening", () => {
+          console.log(`Client: http://localhost:${port}`);
+          console.log(`API Proxy: http://localhost:${apiPort}/api`);
+        });
+      },
+    },
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
@@ -50,12 +46,21 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      "@workspace/api-client-react": path.resolve(
+        import.meta.dirname,
+        "..",
+        "..",
+        "lib",
+        "api-client-react",
+        "src",
+        "index.ts",
+      ),
     },
     dedupe: ["react", "react-dom"],
   },
   root: path.resolve(import.meta.dirname),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, "..", "..", "dist", "public"),
     emptyOutDir: true,
   },
   server: {
@@ -65,6 +70,12 @@ export default defineConfig({
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    proxy: {
+      "/api": {
+        target: `http://localhost:${apiPort}`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

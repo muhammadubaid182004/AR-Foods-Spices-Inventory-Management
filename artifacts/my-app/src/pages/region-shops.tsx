@@ -63,6 +63,7 @@ export default function RegionShops() {
   const [formName, setFormName] = useState("");
   const [formAddress, setFormAddress] = useState("");
   const [formPhone, setFormPhone] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const createMutation = useCreateShop();
   const updateMutation = useUpdateShop();
@@ -147,6 +148,16 @@ export default function RegionShops() {
     );
   };
 
+  const filteredShops = shops?.filter((shop) => {
+    const query = searchTerm.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      shop.name.toLowerCase().includes(query) ||
+      (shop.address?.toLowerCase().includes(query) ?? false) ||
+      (shop.contactPhone?.toLowerCase().includes(query) ?? false)
+    );
+  }) ?? [];
+
   const containerVars = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.07 } },
@@ -206,7 +217,7 @@ export default function RegionShops() {
             Back to Regions
           </button>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -228,6 +239,16 @@ export default function RegionShops() {
           </div>
         </motion.div>
 
+        <div className="mb-8 max-w-xl">
+          <Label className="sr-only">Search shops</Label>
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search shops by name, address, or phone"
+            className="w-full bg-background/50 border-white/10"
+          />
+        </div>
+
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
@@ -241,7 +262,7 @@ export default function RegionShops() {
             animate="show"
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           >
-            {shops?.map((shop) => (
+            {filteredShops.map((shop) => (
               <motion.div
                 key={shop.id}
                 variants={itemVars}
@@ -300,7 +321,7 @@ export default function RegionShops() {
           </motion.div>
         )}
 
-        {shops?.length === 0 && (
+        {filteredShops.length === 0 && !isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import Management from "@/pages/management";
 import RegionShops from "@/pages/region-shops";
 import ShopOrders from "@/pages/shop-orders";
+import Items from "@/pages/items";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/management" component={() => <ProtectedRoute component={Management} />} />
+      <Route path="/items" component={() => <ProtectedRoute component={Items} />} />
       <Route path="/management/regions/:id" component={() => <ProtectedRoute component={RegionShops} />} />
       <Route path="/management/shops/:id" component={() => <ProtectedRoute component={ShopOrders} />} />
       <Route component={NotFound} />

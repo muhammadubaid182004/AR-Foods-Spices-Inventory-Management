@@ -9,9 +9,10 @@ import { rm } from "node:fs/promises";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(artifactDir, "..", "..");
 
 async function buildAll() {
-  const distDir = path.resolve(artifactDir, "dist");
+  const distDir = path.resolve(repoRoot, "dist", "api-server");
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
@@ -100,6 +101,7 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "vite",
     ],
     sourcemap: "linked",
     plugins: [

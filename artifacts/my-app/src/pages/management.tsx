@@ -47,6 +47,7 @@ export default function Management() {
   const [deleteRegionId, setDeleteRegionId] = useState<number | null>(null);
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const createMutation = useCreateRegion();
   const updateMutation = useUpdateRegion();
@@ -109,6 +110,15 @@ export default function Management() {
     );
   };
 
+  const filteredRegions = regions?.filter((region) => {
+    const query = searchTerm.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      region.name.toLowerCase().includes(query) ||
+      (region.description?.toLowerCase().includes(query) ?? false)
+    );
+  }) ?? [];
+
   const containerVars = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.07 } },
@@ -125,7 +135,7 @@ export default function Management() {
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-8"
+          className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8"
         >
           <div>
             <h1 className="text-3xl font-bold text-foreground">Territory Management</h1>
@@ -140,6 +150,16 @@ export default function Management() {
           </Button>
         </motion.div>
 
+        <div className="mb-8">
+          <Label className="sr-only">Search regions</Label>
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search regions by name or description"
+            className="w-full max-w-lg bg-background/50 border-white/10"
+          />
+        </div>
+
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(4)].map((_, i) => (
@@ -153,7 +173,7 @@ export default function Management() {
             animate="show"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           >
-            {regions?.map((region) => (
+            {filteredRegions.map((region) => (
               <motion.div
                 key={region.id}
                 variants={itemVars}
@@ -206,7 +226,7 @@ export default function Management() {
           </motion.div>
         )}
 
-        {regions?.length === 0 && (
+        {filteredRegions.length === 0 && !isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

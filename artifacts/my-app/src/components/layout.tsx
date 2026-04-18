@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Building2, LogOut } from "lucide-react";
+import { LayoutDashboard, Building2, Package, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface LayoutProps {
@@ -18,15 +18,17 @@ export function Layout({ children }: LayoutProps) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/management", label: "Management", icon: Building2 },
+    { href: "/items", label: "Items", icon: Package },
   ];
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden dark">
-      {/* Sidebar */}
-      <motion.aside 
+
+      {/* ── Desktop Sidebar (hidden on mobile) ── */}
+      <motion.aside
         initial={{ x: -250 }}
         animate={{ x: 0 }}
-        className="w-64 border-r border-border bg-sidebar flex flex-col justify-between"
+        className="hidden md:flex w-64 border-r border-border bg-sidebar flex-col justify-between shrink-0"
       >
         <div className="p-6">
           <div className="flex items-center gap-3 mb-10">
@@ -68,10 +70,62 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </motion.aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative">
+      {/* ── Main Content ── */}
+      <main className="flex-1 overflow-y-auto relative pb-20 md:pb-0">
+
+        {/* Mobile top bar — logo only, shown instead of sidebar */}
+        <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b border-border bg-sidebar/80 backdrop-blur-md">
+          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/20">
+            <Building2 className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <h1 className="text-base font-bold tracking-tight text-foreground">Aegis</h1>
+        </div>
+
         {children}
       </main>
+
+      {/* ── Mobile Bottom Navigation Bar (hidden on desktop) ── */}
+      <motion.nav
+        initial={{ y: 80 }}
+        animate={{ y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-border bg-sidebar/95 backdrop-blur-md safe-area-pb"
+      >
+        {navItems.map((item) => {
+          const isActive = location.startsWith(item.href);
+          return (
+            <Link key={item.href} href={item.href} className="flex-1">
+              <div
+                className={`flex flex-col items-center gap-1 py-3 transition-all duration-200 ${
+                  isActive ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <item.icon
+                  className={`w-5 h-5 transition-transform duration-200 ${
+                    isActive ? "scale-110" : ""
+                  }`}
+                />
+                <span className="text-[10px] font-medium leading-none">{item.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottomNavIndicator"
+                    className="absolute bottom-0 w-8 h-0.5 bg-primary rounded-full"
+                  />
+                )}
+              </div>
+            </Link>
+          );
+        })}
+
+        <button
+          onClick={handleLogout}
+          className="flex-1 flex flex-col items-center gap-1 py-3 text-muted-foreground transition-all duration-200"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-[10px] font-medium leading-none">Logout</span>
+        </button>
+      </motion.nav>
+
     </div>
   );
 }

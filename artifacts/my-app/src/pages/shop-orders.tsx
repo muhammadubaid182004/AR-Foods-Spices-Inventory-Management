@@ -231,7 +231,7 @@ export default function ShopOrders() {
                         <Package className="w-3.5 h-3.5" />
                         {order.itemCount} {order.itemCount === 1 ? "item" : "items"}
                       </span>
-                      <span>{format(new Date(order.createdAt), "MMM d, yyyy")}</span>
+                      <span>Placed: {format(new Date(order.placedAt || order.createdAt), "MMM d, yyyy")}</span>
                       {order.notes && <span className="truncate max-w-xs">{order.notes}</span>}
                     </div>
                   </div>
