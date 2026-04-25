@@ -20,17 +20,42 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    if (!trimmedEmail || !trimmedPassword) {
+      toast({
+        title: "Missing Fields",
+        description: "Please enter both username and password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     loginMutation.mutate(
-      { data: { email, password } },
+      { data: { email: trimmedEmail, password: trimmedPassword } },
       {
         onSuccess: (data) => {
           localStorage.setItem("auth_token", data.token);
           setLocation("/dashboard");
         },
         onError: (err) => {
-          const message = err instanceof Error ? err.message : "Please check your credentials and try again.";
+          const status =
+            typeof err === "object" && err !== null && "status" in err
+              ? (err as { status?: number }).status
+              : undefined;
+          const isUnauthorized =
+            status === 401;
+          const rawMessage = err instanceof Error ? err.message : "";
+          const looksLikeHtmlError = /<!doctype html>|<html|<body|<head/i.test(rawMessage);
+          const isServerError = typeof status === "number" && status >= 500;
+          const message = isUnauthorized
+            ? "Wrong username or password."
+            : isServerError || looksLikeHtmlError
+              ? "Server error. Please try again in a moment."
+              : rawMessage || "Please check your credentials and try again.";
           toast({
-            title: "Authentication Failed",
+            title: isUnauthorized ? "Invalid Credentials" : "Authentication Failed",
             description: message,
             variant: "destructive",
           });
@@ -64,7 +89,7 @@ export default function Login() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+          <form onSubmit={handleSubmit} noValidate className="space-y-6" autoComplete="off">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 System ID
