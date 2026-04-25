@@ -174,6 +174,36 @@ paths:
                 items:
                   $ref: "#/components/schemas/SalesTimePoint"
 
+  /dashboard/load-chart:
+    get:
+      operationId: getLoadChart
+      tags: [dashboard]
+      summary: Get items and quantities sold with optional month/year filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Year filter (e.g., 2026)
+      responses:
+        "200":
+          description: Load chart data with items and quantities sold
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LoadChartItem"
+
   /regions:
     get:
       operationId: getRegions
@@ -703,6 +733,20 @@ components:
         - regionId
         - sales
 
+    LoadChartItem:
+      type: object
+      properties:
+        itemId:
+          type: integer
+        itemName:
+          type: string
+        quantitySold:
+          type: integer
+      required:
+        - itemId
+        - itemName
+        - quantitySold
+
     Region:
       type: object
       properties:
@@ -797,8 +841,6 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: number
-        minOrderQty:
-          type: integer
         stockQuantity:
           type: integer
         category:
@@ -812,7 +854,6 @@ components:
         - name
         - description
         - unitPrice
-        - minOrderQty
         - stockQuantity
         - category
         - sku
@@ -827,8 +868,6 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: number
-        minOrderQty:
-          type: integer
         stockQuantity:
           type: integer
         category:
@@ -838,7 +877,6 @@ components:
       required:
         - name
         - unitPrice
-        - minOrderQty
         - stockQuantity
 
     UpdateItemBody:
@@ -850,8 +888,6 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: number
-        minOrderQty:
-          type: integer
         stockQuantity:
           type: integer
         category:
@@ -869,7 +905,7 @@ components:
         totalAmount:
           type: number
         status:
-          type: string
+          $ref: "#/components/schemas/OrderStatus"
         notes:
           type: ["string", "null"]
         placedAt:
@@ -898,7 +934,7 @@ components:
         totalAmount:
           type: number
         status:
-          type: string
+          $ref: "#/components/schemas/OrderStatus"
         notes:
           type: ["string", "null"]
         placedAt:
@@ -947,12 +983,24 @@ components:
       properties:
         notes:
           type: ["string", "null"]
+        status:
+          oneOf:
+            - $ref: "#/components/schemas/OrderStatus"
+            - type: "null"
         lineItems:
           type: array
           items:
             $ref: "#/components/schemas/CreateOrderLineItem"
       required:
         - lineItems
+
+    OrderStatus:
+      type: string
+      enum:
+        - booked
+        - in_progress
+        - delivered
+        - cancelled
 
     CreateOrderLineItem:
       type: object

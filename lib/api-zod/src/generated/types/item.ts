@@ -12,7 +12,6 @@ export interface Item {
   /** @nullable */
   description: string | null;
   unitPrice: number;
-  minOrderQty: number;
   stockQuantity: number;
   /** @nullable */
   category: string | null;

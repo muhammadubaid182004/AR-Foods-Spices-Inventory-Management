@@ -31,9 +31,11 @@ import type {
   CreateShopBody,
   DashboardSummary,
   ErrorResponse,
+  GetLoadChartParams,
   GetRegionSalesDetailParams,
   HealthStatus,
   Item,
+  LoadChartItem,
   LoginBody,
   LoginResponse,
   Order,
@@ -832,6 +834,114 @@ export function useGetRegionSalesDetail<TData = Awaited<ReturnType<typeof getReg
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetRegionSalesDetailQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+/**
+ * @summary Get items and quantities sold with optional month/year filters
+ */
+export const getGetLoadChartUrl = (params?: GetLoadChartParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/dashboard/load-chart?${stringifiedParams}` : `/api/dashboard/load-chart`
+}
+
+export const getLoadChart = async (params?: GetLoadChartParams, options?: RequestInit): Promise<LoadChartItem[]> => {
+
+  return customFetch<LoadChartItem[]>(getGetLoadChartUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLoadChartQueryKey = (params?: GetLoadChartParams,) => {
+    return [
+    `/api/dashboard/load-chart`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLoadChartQueryOptions = <TData = Awaited<ReturnType<typeof getLoadChart>>, TError = ErrorType<unknown>>(params?: GetLoadChartParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadChart>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLoadChartQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoadChart>>> = ({ signal }) => getLoadChart(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLoadChart>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLoadChartQueryResult = NonNullable<Awaited<ReturnType<typeof getLoadChart>>>
+export type GetLoadChartQueryError = ErrorType<unknown>
+
+
+export function useGetLoadChart<TData = Awaited<ReturnType<typeof getLoadChart>>, TError = ErrorType<unknown>>(
+ params: undefined |  GetLoadChartParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadChart>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoadChart>>,
+          TError,
+          Awaited<ReturnType<typeof getLoadChart>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoadChart<TData = Awaited<ReturnType<typeof getLoadChart>>, TError = ErrorType<unknown>>(
+ params?: GetLoadChartParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadChart>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoadChart>>,
+          TError,
+          Awaited<ReturnType<typeof getLoadChart>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLoadChart<TData = Awaited<ReturnType<typeof getLoadChart>>, TError = ErrorType<unknown>>(
+ params?: GetLoadChartParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadChart>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get items and quantities sold with optional month/year filters
+ */
+
+export function useGetLoadChart<TData = Awaited<ReturnType<typeof getLoadChart>>, TError = ErrorType<unknown>>(
+ params?: GetLoadChartParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLoadChart>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLoadChartQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

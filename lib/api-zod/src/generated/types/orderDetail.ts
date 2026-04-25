@@ -6,12 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OrderLineItem } from './orderLineItem';
+import type { OrderStatus } from './createOrderBody';
 
 export interface OrderDetail {
   id: number;
   shopId: number;
+  /** @nullable */
+  distributorId: number | null;
+  /** @nullable */
+  distributorName: string | null;
+  /** @nullable */
+  distributorContact: string | null;
   totalAmount: number;
-  status: string;
+  status: OrderStatus;
   /** @nullable */
   notes: string | null;
   placedAt: string;

@@ -13,4 +13,12 @@ export const db = drizzle(pool, {
   schema,
 });
 
+void pool`select 1`
+  .then(() => {
+    console.log("Database connected successfully");
+  })
+  .catch(() => {
+    // Keep startup behavior unchanged; connection errors are handled where queries execute.
+  });
+
 export * from "./schema";

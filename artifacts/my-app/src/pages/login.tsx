@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { Building2, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
+  const brandName = "Al Rehman Foods & Spices";
+  const brandLogoPath = "/al-rehman-logo.png";
   const [email, setEmail] = useState("testuser");
   const [password, setPassword] = useState("testuser123");
 
@@ -24,10 +26,11 @@ export default function Login() {
           localStorage.setItem("auth_token", data.token);
           setLocation("/dashboard");
         },
-        onError: () => {
+        onError: (err) => {
+          const message = err instanceof Error ? err.message : "Please check your credentials and try again.";
           toast({
             title: "Authentication Failed",
-            description: "Please check your credentials and try again.",
+            description: message,
             variant: "destructive",
           });
         },
@@ -49,12 +52,14 @@ export default function Login() {
       >
         <div className="bg-card/50 backdrop-blur-xl border border-white/10 p-8 rounded-2xl shadow-2xl">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 mb-4">
-              <Building2 className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Aegis Control</h1>
+            <img
+              src={brandLogoPath}
+              alt={brandName}
+              className="w-20 h-20 rounded-2xl object-contain bg-black/25 p-2 ring-1 ring-border/60 shadow-lg mb-4"
+            />
+            <h1 className="text-2xl font-bold tracking-tight text-foreground text-center">{brandName}</h1>
             <p className="text-sm text-muted-foreground mt-2 text-center">
-              Sign in to access the regional management suite.
+              Sign in to access your inventory and sales management suite.
             </p>
           </div>
 

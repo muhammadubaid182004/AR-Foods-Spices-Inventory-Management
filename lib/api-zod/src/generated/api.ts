@@ -106,6 +106,22 @@ export const GetRegionSalesDetailResponse = zod.array(GetRegionSalesDetailRespon
 
 
 /**
+ * @summary Get items and quantities sold with optional month/year filters
+ */
+export const GetLoadChartQueryParams = zod.object({
+  "month": zod.coerce.number().optional().describe('Month filter (1-12)'),
+  "year": zod.coerce.number().optional().describe('Year filter (e.g., 2026)')
+})
+
+export const GetLoadChartResponseItem = zod.object({
+  "itemId": zod.number(),
+  "itemName": zod.string(),
+  "quantitySold": zod.number()
+})
+export const GetLoadChartResponse = zod.array(GetLoadChartResponseItem)
+
+
+/**
  * @summary List all regions
  */
 export const GetRegionsResponseItem = zod.object({
@@ -260,7 +276,6 @@ export const GetItemsResponseItem = zod.object({
   "name": zod.string(),
   "description": zod.string().nullable(),
   "unitPrice": zod.number(),
-  "minOrderQty": zod.number(),
   "stockQuantity": zod.number(),
   "category": zod.string().nullable(),
   "sku": zod.string().nullable(),
@@ -276,7 +291,6 @@ export const CreateItemBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unitPrice": zod.number(),
-  "minOrderQty": zod.number(),
   "stockQuantity": zod.number(),
   "category": zod.string().nullish(),
   "sku": zod.string().nullish()
@@ -294,7 +308,6 @@ export const UpdateItemBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().nullish(),
   "unitPrice": zod.number().optional(),
-  "minOrderQty": zod.number().optional(),
   "stockQuantity": zod.number().optional(),
   "category": zod.string().nullish(),
   "sku": zod.string().nullish()
@@ -305,7 +318,6 @@ export const UpdateItemResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullable(),
   "unitPrice": zod.number(),
-  "minOrderQty": zod.number(),
   "stockQuantity": zod.number(),
   "category": zod.string().nullable(),
   "sku": zod.string().nullable(),
@@ -349,7 +361,9 @@ export const CreateOrderParams = zod.object({
 })
 
 export const CreateOrderBody = zod.object({
+  "distributorId": zod.number(),
   "notes": zod.string().nullish(),
+  "status": zod.enum(["booked", "in_progress", "delivered", "cancelled"]).nullish(),
   "lineItems": zod.array(zod.object({
   "itemId": zod.number(),
   "quantity": zod.number()
@@ -389,5 +403,4 @@ export const GetOrderResponse = zod.object({
 export const DeleteOrderParams = zod.object({
   "id": zod.coerce.number()
 })
-
 

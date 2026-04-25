@@ -365,7 +365,24 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      method,
+      headers,
+      credentials: init.credentials ?? "include",
+    });
+  } catch (error) {
+    const requestUrl = requestInfo.url;
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown network error";
+    throw new Error(
+      `Network request failed for ${method} ${requestUrl}. ` +
+        `If you are using ngrok, verify the active URL and API base configuration. ` +
+        `Original error: ${errorMessage}`,
+    );
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

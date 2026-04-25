@@ -54,6 +54,12 @@ export interface SalesByRegion {
   sales: number;
 }
 
+export interface LoadChartItem {
+  itemId: number;
+  itemName: string;
+  quantitySold: number;
+}
+
 export interface Region {
   id: number;
   name: string;
@@ -108,7 +114,6 @@ export interface Item {
   /** @nullable */
   description: string | null;
   unitPrice: number;
-  minOrderQty: number;
   stockQuantity: number;
   /** @nullable */
   category: string | null;
@@ -122,7 +127,6 @@ export interface CreateItemBody {
   /** @nullable */
   description?: string | null;
   unitPrice: number;
-  minOrderQty: number;
   stockQuantity: number;
   /** @nullable */
   category?: string | null;
@@ -135,7 +139,6 @@ export interface UpdateItemBody {
   /** @nullable */
   description?: string | null;
   unitPrice?: number;
-  minOrderQty?: number;
   stockQuantity?: number;
   /** @nullable */
   category?: string | null;
@@ -143,11 +146,18 @@ export interface UpdateItemBody {
   sku?: string | null;
 }
 
+export type OrderStatus = 'booked' | 'in_progress' | 'delivered' | 'cancelled';
+
 export interface Order {
   id: number;
   shopId: number;
+  distributorId: number | null;
+  /** @nullable */
+  distributorName: string | null;
+  /** @nullable */
+  distributorContact: string | null;
   totalAmount: number;
-  status: string;
+  status: OrderStatus;
   /** @nullable */
   notes: string | null;
   placedAt: string;
@@ -167,8 +177,13 @@ export interface OrderLineItem {
 export interface OrderDetail {
   id: number;
   shopId: number;
+  distributorId: number | null;
+  /** @nullable */
+  distributorName: string | null;
+  /** @nullable */
+  distributorContact: string | null;
   totalAmount: number;
-  status: string;
+  status: OrderStatus;
   /** @nullable */
   notes: string | null;
   placedAt: string;
@@ -182,8 +197,11 @@ export interface CreateOrderLineItem {
 }
 
 export interface CreateOrderBody {
+  distributorId: number;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  status?: OrderStatus | null;
   lineItems: CreateOrderLineItem[];
 }
 
@@ -191,3 +209,13 @@ export type GetRegionSalesDetailParams = {
 regionId: number;
 };
 
+export type GetLoadChartParams = {
+/**
+ * Month filter (1-12)
+ */
+month?: number;
+/**
+ * Year filter (e.g., 2026)
+ */
+year?: number;
+};

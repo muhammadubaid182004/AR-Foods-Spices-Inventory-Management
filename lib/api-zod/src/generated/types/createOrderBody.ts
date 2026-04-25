@@ -7,8 +7,13 @@
  */
 import type { CreateOrderLineItem } from './createOrderLineItem';
 
+export type OrderStatus = 'booked' | 'in_progress' | 'delivered' | 'cancelled';
+
 export interface CreateOrderBody {
+  distributorId: number;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  status?: OrderStatus | null;
   lineItems: CreateOrderLineItem[];
 }

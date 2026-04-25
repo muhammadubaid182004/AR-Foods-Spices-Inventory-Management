@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, ordersTable, regionsTable, shopsTable, orderLineItemsTable } from "@workspace/db";
-import { sql, eq } from "drizzle-orm";
+import { db, ordersTable, regionsTable, shopsTable, orderLineItemsTable, itemsTable } from "@workspace/db";
+import { sql, eq, and, gte, lt } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
 import { GetRegionSalesDetailQueryParams } from "@workspace/api-zod";
 
@@ -32,7 +32,7 @@ router.get("/dashboard/summary", requireAuth, async (_req, res): Promise<void> =
 });
 
 router.get("/dashboard/sales-over-time", requireAuth, async (_req, res): Promise<void> => {
-  const monthExpr = sql<string>`DATE_FORMAT(${ordersTable.placedAt}, '%Y-%m')`;
+  const monthExpr = sql<string>`to_char(${ordersTable.placedAt}, 'YYYY-MM')`;
   const rows = await db
     .select({
       month: monthExpr,
@@ -85,7 +85,7 @@ router.get("/dashboard/region-sales-detail", requireAuth, async (req, res): Prom
 
   const { regionId } = parsed.data;
 
-  const monthExpr = sql<string>`DATE_FORMAT(${ordersTable.placedAt}, '%Y-%m')`;
+  const monthExpr = sql<string>`to_char(${ordersTable.placedAt}, 'YYYY-MM')`;
   const rows = await db
     .select({
       month: monthExpr,
@@ -98,6 +98,84 @@ router.get("/dashboard/region-sales-detail", requireAuth, async (req, res): Prom
     .orderBy(monthExpr);
 
   res.json(rows.map(r => ({ month: r.month, sales: parseFloat(r.sales) })));
+});
+
+router.get("/dashboard/load-chart", requireAuth, async (req, res): Promise<void> => {
+  const { month, year } = req.query;
+  const monthNum = month ? Number.parseInt(month as string, 10) : undefined;
+  const yearNum = year ? Number.parseInt(year as string, 10) : undefined;
+
+  const query = db
+    .select({
+      itemId: itemsTable.id,
+      itemName: itemsTable.name,
+      quantitySold: sql<number>`COALESCE(SUM(${orderLineItemsTable.quantity}), 0)`,
+    })
+    .from(orderLineItemsTable)
+    .innerJoin(itemsTable, eq(itemsTable.id, orderLineItemsTable.itemId))
+    .innerJoin(ordersTable, eq(ordersTable.id, orderLineItemsTable.orderId))
+    .groupBy(itemsTable.id, itemsTable.name)
+    .orderBy(sql`COALESCE(SUM(${orderLineItemsTable.quantity}), 0) DESC`);
+
+  if (yearNum && monthNum && monthNum >= 1 && monthNum <= 12) {
+    const start = new Date(Date.UTC(yearNum, monthNum - 1, 1));
+    const end = new Date(Date.UTC(yearNum, monthNum, 1));
+    query.where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));
+  } else if (monthNum && monthNum >= 1 && monthNum <= 12) {
+    query.where(sql`EXTRACT(MONTH FROM ${ordersTable.placedAt}) = ${monthNum}`);
+  } else if (yearNum) {
+    const start = new Date(Date.UTC(yearNum, 0, 1));
+    const end = new Date(Date.UTC(yearNum + 1, 0, 1));
+    query.where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));
+  }
+
+  const rows = await query;
+  res.json(rows.map(r => ({ itemId: r.itemId, itemName: r.itemName, quantitySold: r.quantitySold })));
+});
+
+router.get("/dashboard/day-metrics", requireAuth, async (req, res): Promise<void> => {
+  const date = typeof req.query.date === "string" ? req.query.date : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: "date must be in YYYY-MM-DD format" });
+    return;
+  }
+
+  const start = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(start.getTime())) {
+    res.status(400).json({ error: "invalid date" });
+    return;
+  }
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  const [salesRow] = await db
+    .select({
+      sales: sql<string>`COALESCE(SUM(${ordersTable.totalAmount}), 0)`,
+    })
+    .from(ordersTable)
+    .where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));
+
+  const [bookingsRow] = await db
+    .select({
+      bookings: sql<string>`COALESCE(COUNT(*), 0)`,
+    })
+    .from(ordersTable)
+    .where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));
+
+  const [unitsMovedRow] = await db
+    .select({
+      unitsMoved: sql<string>`COALESCE(SUM(${orderLineItemsTable.quantity}), 0)`,
+    })
+    .from(orderLineItemsTable)
+    .innerJoin(ordersTable, eq(ordersTable.id, orderLineItemsTable.orderId))
+    .where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));
+
+  res.json({
+    date,
+    sales: parseFloat(salesRow?.sales ?? "0"),
+    bookings: parseInt(bookingsRow?.bookings ?? "0", 10),
+    unitsMoved: parseInt(unitsMovedRow?.unitsMoved ?? "0", 10),
+  });
 });
 
 export default router;

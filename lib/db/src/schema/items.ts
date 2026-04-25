@@ -7,7 +7,6 @@ export const itemsTable = pgTable("items", {
   name: text("name").notNull(),
   description: text("description"),
   unitPrice: text("unit_price").notNull(),
-  minOrderQty: serial("min_order_qty").notNull().default(1),
   stockQuantity: serial("stock_quantity").notNull().default(0),
   category: text("category"),
   sku: text("sku"),

@@ -9,6 +9,8 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const [location, setLocation] = useLocation();
+  const brandName = "Al Rehman Foods & Spices";
+  const brandLogoPath = "/al-rehman-logo.png";
 
   const handleLogout = () => {
     localStorage.removeItem("auth_token");
@@ -32,10 +34,14 @@ export function Layout({ children }: LayoutProps) {
       >
         <div className="p-6">
           <div className="flex items-center gap-3 mb-10">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <Building2 className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Aegis</h1>
+            <img
+              src={brandLogoPath}
+              alt={brandName}
+              className="w-12 h-12 rounded-full object-cover ring-1 ring-border/60 shadow-sm"
+            />
+            <h1 className="text-sm font-bold tracking-tight text-foreground leading-tight">
+              {brandName}
+            </h1>
           </div>
 
           <nav className="space-y-2">
@@ -75,10 +81,12 @@ export function Layout({ children }: LayoutProps) {
 
         {/* Mobile top bar — logo only, shown instead of sidebar */}
         <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b border-border bg-sidebar/80 backdrop-blur-md">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/20">
-            <Building2 className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <h1 className="text-base font-bold tracking-tight text-foreground">Aegis</h1>
+          <img
+            src={brandLogoPath}
+            alt={brandName}
+            className="w-9 h-9 rounded-full object-cover ring-1 ring-border/60"
+          />
+          <h1 className="text-sm font-bold tracking-tight text-foreground leading-tight">{brandName}</h1>
         </div>
 
         {children}

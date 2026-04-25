@@ -1,7 +1,10 @@
 import { Router, type IRouter } from "express";
-import { db, ordersTable, orderLineItemsTable, itemsTable } from "@workspace/db";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { db, ordersTable, orderLineItemsTable, itemsTable, distributorsTable, shopsTable, invoicesTable } from "@workspace/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
+import { generateInvoicePdf, type InvoicePayload } from "../lib/generate-invoice";
 import {
   CreateOrderBody,
   GetOrdersByShopParams,
@@ -11,6 +14,125 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+const ORDER_QTY_STEP = 6;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const INVOICE_TEMPLATE_PATH = path.resolve(__dirname, "..", "template.pdf");
+
+const formatDateToISO = (date: Date | string | null) => {
+  if (!date) return new Date().toISOString();
+  if (typeof date === "string") {
+    return new Date(date).toISOString();
+  }
+  return date.toISOString();
+};
+
+const formatDisplayDate = (date: Date | string | null) => {
+  const parsed = date ? new Date(date) : new Date();
+  return parsed.toLocaleDateString("en-CA");
+};
+
+const buildInvoiceNumber = (orderId: number) => `INV-${orderId.toString().padStart(6, "0")}`;
+
+const saveInvoiceRecord = async (args: {
+  orderId: number;
+  shopId: number;
+  distributorId: number | null;
+  invoiceNumber: string;
+  orderStatus: string;
+  invoiceDate: Date;
+  totalAmount: number;
+  notes: string | null;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+  }>;
+}) => {
+  await db
+    .insert(invoicesTable)
+    .values({
+      orderId: args.orderId,
+      shopId: args.shopId,
+      distributorId: args.distributorId,
+      invoiceNumber: args.invoiceNumber,
+      orderStatus: args.orderStatus,
+      invoiceDate: args.invoiceDate,
+      totalAmount: String(args.totalAmount),
+      notes: args.notes,
+      items: args.items,
+    })
+    .onConflictDoUpdate({
+      target: invoicesTable.orderId,
+      set: {
+        shopId: args.shopId,
+        distributorId: args.distributorId,
+        invoiceNumber: args.invoiceNumber,
+        orderStatus: args.orderStatus,
+        invoiceDate: args.invoiceDate,
+        totalAmount: String(args.totalAmount),
+        notes: args.notes,
+        items: args.items,
+      },
+    });
+};
+
+const getOrderDetails = async (orderId: number) => {
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+  if (!order) {
+    return null;
+  }
+
+  const distributor = order.distributorId
+    ? await db
+        .select({
+          id: distributorsTable.id,
+          name: distributorsTable.name,
+          contact: distributorsTable.contact,
+        })
+        .from(distributorsTable)
+        .where(eq(distributorsTable.id, order.distributorId))
+        .then((rows) => rows[0] ?? null)
+    : null;
+
+  const [shop] = await db
+    .select()
+    .from(shopsTable)
+    .where(eq(shopsTable.id, order.shopId));
+
+  const lineItems = await db
+    .select({
+      id: orderLineItemsTable.id,
+      itemId: orderLineItemsTable.itemId,
+      itemName: itemsTable.name,
+      itemDescription: itemsTable.description,
+      quantity: orderLineItemsTable.quantity,
+      unitPrice: orderLineItemsTable.unitPrice,
+      subtotal: orderLineItemsTable.subtotal,
+    })
+    .from(orderLineItemsTable)
+    .innerJoin(itemsTable, eq(itemsTable.id, orderLineItemsTable.itemId))
+    .where(eq(orderLineItemsTable.orderId, order.id));
+
+  if (!shop) {
+    throw new Error("Order shop not found");
+  }
+
+  return {
+    order,
+    distributor,
+    shop: {
+      id: shop.id,
+      regionId: shop.regionId,
+      name: shop.name,
+      address: shop.address ?? null,
+      contactPhone: shop.contactPhone ?? null,
+      createdAt: formatDateToISO(shop.createdAt),
+    },
+    lineItems,
+  };
+};
 
 router.get("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void> => {
   const params = GetOrdersByShopParams.safeParse(req.params);
@@ -19,29 +141,40 @@ router.get("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void>
     return;
   }
 
+  const lineItemCounts = db
+    .select({
+      orderId: orderLineItemsTable.orderId,
+      itemCount: sql<string>`COUNT(*)`.as("item_count"),
+    })
+    .from(orderLineItemsTable)
+    .groupBy(orderLineItemsTable.orderId)
+    .as("line_item_counts");
+
   const rows = await db
     .select({
       id: ordersTable.id,
       shopId: ordersTable.shopId,
+      distributorId: ordersTable.distributorId,
+      distributorName: distributorsTable.name,
+      distributorContact: distributorsTable.contact,
       totalAmount: ordersTable.totalAmount,
       status: ordersTable.status,
       notes: ordersTable.notes,
-      placedAt: sql<string>`COALESCE(DATE_FORMAT(${ordersTable.placedAt}, '%Y-%m-%dT%H:%i:%sZ'), DATE_FORMAT(${ordersTable.createdAt}, '%Y-%m-%dT%H:%i:%sZ'))`,
-      createdAt: ordersTable.createdAt,
-      itemCount: sql<string>`COUNT(${orderLineItemsTable.id})`,
+      placedAt: ordersTable.placedAt,
+      itemCount: lineItemCounts.itemCount,
     })
     .from(ordersTable)
-    .leftJoin(orderLineItemsTable, eq(orderLineItemsTable.orderId, ordersTable.id))
+    .leftJoin(distributorsTable, eq(distributorsTable.id, ordersTable.distributorId))
+    .leftJoin(lineItemCounts, eq(lineItemCounts.orderId, ordersTable.id))
     .where(eq(ordersTable.shopId, params.data.shopId))
-    .groupBy(ordersTable.id)
-    .orderBy(sql`COALESCE(${ordersTable.placedAt}, ${ordersTable.createdAt}) DESC`);
+    .orderBy(sql`${ordersTable.placedAt} DESC`);
 
   res.json(rows.map(r => ({
     ...r,
     totalAmount: parseFloat(r.totalAmount),
-    placedAt: r.placedAt,
-    createdAt: r.createdAt.toISOString(),
-    itemCount: parseInt(r.itemCount, 10),
+    placedAt: formatDateToISO(r.placedAt),
+    createdAt: formatDateToISO(r.placedAt),
+    itemCount: parseInt(r.itemCount ?? "0", 10),
   })));
 });
 
@@ -58,9 +191,23 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const { lineItems, notes } = parsed.data;
+  const { lineItems, notes, distributorId } = parsed.data;
 
-  // Validate items and check min order qty
+  const [distributor] = await db
+    .select({
+      id: distributorsTable.id,
+      name: distributorsTable.name,
+      contact: distributorsTable.contact,
+    })
+    .from(distributorsTable)
+    .where(eq(distributorsTable.id, distributorId));
+
+  if (!distributor) {
+    res.status(400).json({ error: "Selected distributor not found" });
+    return;
+  }
+
+  // Validate items and enforce quantity steps
   const itemIds = lineItems.map(li => li.itemId);
   const items = await db
     .select()
@@ -78,8 +225,8 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
       res.status(400).json({ error: `Item ${li.itemId} not found` });
       return;
     }
-    if (li.quantity < item.minOrderQty) {
-      res.status(400).json({ error: `Minimum order quantity for ${item.name} is ${item.minOrderQty}` });
+    if (li.quantity % ORDER_QTY_STEP !== 0) {
+      res.status(400).json({ error: `Quantity for ${item.name} must be in multiples of ${ORDER_QTY_STEP}` });
       return;
     }
     const unitPrice = parseFloat(item.unitPrice);
@@ -97,11 +244,12 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
     .insert(ordersTable)
     .values({
       shopId: params.data.shopId,
+      distributorId: distributor.id,
       totalAmount: String(totalAmount),
-      status: "completed",
+      status: parsed.data.status ?? "booked",
       notes: notes ?? null,
     })
-    .$returningId();
+    .returning({ id: ordersTable.id });
 
   if (!insertedOrder) {
     res.status(500).json({ error: "Failed to create order" });
@@ -122,22 +270,17 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
     lineItemsToInsert.map(li => ({ ...li, orderId: order.id }))
   );
 
-  const formatDateToISO = (date: Date | string | null) => {
-    if (!date) return new Date().toISOString();
-    if (typeof date === 'string') {
-      return new Date(date).toISOString();
-    }
-    return date.toISOString();
-  };
-
   res.status(201).json({
     id: order.id,
     shopId: order.shopId,
+    distributorId: order.distributorId,
+    distributorName: distributor.name,
+    distributorContact: distributor.contact,
     totalAmount: parseFloat(order.totalAmount),
     status: order.status,
     notes: order.notes,
     placedAt: formatDateToISO(order.placedAt),
-    createdAt: order.createdAt.toISOString(),
+    createdAt: formatDateToISO(order.placedAt),
     itemCount: lineItemsToInsert.length,
   });
 });
@@ -149,47 +292,96 @@ router.get("/orders/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
-  if (!order) {
+  const details = await getOrderDetails(params.data.id);
+  if (!details) {
     res.status(404).json({ error: "Order not found" });
     return;
   }
-
-  const lineItems = await db
-    .select({
-      id: orderLineItemsTable.id,
-      itemId: orderLineItemsTable.itemId,
-      itemName: itemsTable.name,
-      quantity: orderLineItemsTable.quantity,
-      unitPrice: orderLineItemsTable.unitPrice,
-      subtotal: orderLineItemsTable.subtotal,
-    })
-    .from(orderLineItemsTable)
-    .innerJoin(itemsTable, eq(itemsTable.id, orderLineItemsTable.itemId))
-    .where(eq(orderLineItemsTable.orderId, order.id));
-
-  const formatDateToISO = (date: Date | string | null) => {
-    if (!date) return new Date().toISOString();
-    if (typeof date === 'string') {
-      return new Date(date).toISOString();
-    }
-    return date.toISOString();
-  };
+  const { order, distributor, lineItems } = details;
 
   res.json({
     id: order.id,
     shopId: order.shopId,
+    distributorId: order.distributorId,
+    distributorName: distributor?.name ?? null,
+    distributorContact: distributor?.contact ?? null,
     totalAmount: parseFloat(order.totalAmount),
     status: order.status,
     notes: order.notes,
     placedAt: formatDateToISO(order.placedAt),
-    createdAt: order.createdAt.toISOString(),
+    createdAt: formatDateToISO(order.placedAt),
     lineItems: lineItems.map(li => ({
       ...li,
       unitPrice: parseFloat(li.unitPrice),
       subtotal: parseFloat(li.subtotal),
     })),
   });
+});
+
+router.get("/orders/:id/invoice", requireAuth, async (req, res): Promise<void> => {
+  const params = GetOrderParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const details = await getOrderDetails(params.data.id);
+  if (!details) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  const { order, distributor, shop, lineItems } = details;
+
+  try {
+    const invoiceNumber = buildInvoiceNumber(order.id);
+    const invoiceDate = order.placedAt ? new Date(order.placedAt) : new Date();
+    const payload: InvoicePayload = {
+      invoiceNumber,
+      invoiceDate: formatDisplayDate(invoiceDate),
+      generatedAt: formatDisplayDate(new Date()),
+      orderStatus: order.status,
+      distributorName: distributor?.name ?? null,
+      distributorContact: distributor?.contact ?? null,
+      notes: order.notes,
+      totalAmount: parseFloat(order.totalAmount),
+      shop,
+      items: lineItems.map((lineItem) => ({
+        name: lineItem.itemName,
+        description: lineItem.itemDescription,
+        unitPrice: parseFloat(lineItem.unitPrice),
+        quantity: lineItem.quantity,
+        amount: parseFloat(lineItem.subtotal),
+      })),
+    };
+    const pdfBuffer = await generateInvoicePdf(INVOICE_TEMPLATE_PATH, payload);
+
+    await saveInvoiceRecord({
+      orderId: order.id,
+      shopId: order.shopId,
+      distributorId: order.distributorId ?? null,
+      invoiceNumber,
+      orderStatus: order.status,
+      invoiceDate,
+      totalAmount: parseFloat(order.totalAmount),
+      notes: order.notes,
+      items: payload.items.map((item) => ({
+        description: item.description ?? item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+      })),
+    });
+
+    res
+      .status(200)
+      .setHeader("Content-Type", "application/pdf")
+      .setHeader("Content-Disposition", `attachment; filename="${invoiceNumber}.pdf"`)
+      .send(pdfBuffer);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to generate invoice";
+    res.status(500).json({ error: message });
+  }
 });
 
 router.delete("/orders/:id", requireAuth, async (req, res): Promise<void> => {

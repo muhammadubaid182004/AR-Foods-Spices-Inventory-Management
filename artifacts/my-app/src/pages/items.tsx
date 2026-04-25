@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, Plus, Pencil, Trash2, DollarSign } from "lucide-react";
+import { Package, Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type Item = {
@@ -32,6 +32,7 @@ type Item = {
   name: string;
   description: string | null;
   unitPrice: number;
+  stockQuantity: number;
   createdAt: string;
 };
 
@@ -72,7 +73,14 @@ export default function Items() {
     if (isNaN(price) || price < 0) return;
 
     createMutation.mutate(
-      { data: { name: formName.trim(), description: formDesc.trim() || null, unitPrice: price } },
+      {
+        data: {
+          name: formName.trim(),
+          description: formDesc.trim() || null,
+          unitPrice: price,
+          stockQuantity: 0,
+        },
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetItemsQueryKey() });
@@ -90,7 +98,14 @@ export default function Items() {
     if (isNaN(price) || price < 0) return;
 
     updateMutation.mutate(
-      { id: editItem.id, data: { name: formName.trim(), description: formDesc.trim() || null, unitPrice: price } },
+      {
+        id: editItem.id,
+        data: {
+          name: formName.trim(),
+          description: formDesc.trim() || null,
+          unitPrice: price,
+        },
+      },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetItemsQueryKey() });
@@ -141,31 +156,36 @@ export default function Items() {
 
   return (
     <Layout>
-      <div className="p-8 space-y-8">
+      <div className="px-4 py-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 md:space-y-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
+          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Items Management</h1>
-            <p className="text-muted-foreground mt-2">Manage your inventory items</p>
+          <div className="min-w-0">
+            <h1 className="text-4xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+              Items Management
+            </h1>
+            <p className="text-muted-foreground mt-2 text-base sm:text-sm">Manage your inventory items</p>
           </div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button onClick={openCreate} className="bg-primary hover:bg-primary/90">
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
+            <Button
+              onClick={openCreate}
+              className="w-full sm:w-auto h-11 sm:h-10 px-4 bg-primary hover:bg-primary/90 text-base sm:text-sm"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add Item
             </Button>
           </motion.div>
         </motion.div>
 
-        <div className="mb-8">
+        <div className="mb-2 sm:mb-4 md:mb-8">
           <Label className="sr-only">Search items</Label>
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search items by name or description"
-            className="w-full max-w-lg bg-background/50 border-white/10"
+            className="w-full max-w-none sm:max-w-lg h-11 sm:h-10 text-base sm:text-sm bg-background/50 border-white/10"
           />
         </div>
 
@@ -187,41 +207,41 @@ export default function Items() {
                 key={item.id}
                 variants={itemVars}
                 whileHover={{ scale: 1.01 }}
-                className="bg-card/40 border border-white/5 rounded-xl p-5 flex flex-col gap-4 hover:border-primary/20 hover:bg-card/60 transition-all duration-200 group"
+                className="bg-card/40 border border-white/5 rounded-xl p-4 sm:p-5 flex flex-col gap-4 hover:border-primary/20 hover:bg-card/60 transition-all duration-200 group"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
                       <Package className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground leading-tight">{item.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-foreground leading-tight truncate">{item.name}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-1">
                         {item.description ?? "No description"}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(item); }}
-                      className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
+                      className="p-2 sm:p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeleteItemId(item.id); }}
-                      className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all"
+                      className="p-2 sm:p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-all"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <DollarSign className="w-4 h-4" />
+                  <div className="flex items-center gap-2 text-base sm:text-sm text-muted-foreground">
+                    <span className="text-base leading-none">₨</span>
                     <span>{item.unitPrice.toFixed(2)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs sm:text-sm text-muted-foreground">
                     {new Date(item.createdAt).toLocaleDateString()}
                   </div>
                 </div>
