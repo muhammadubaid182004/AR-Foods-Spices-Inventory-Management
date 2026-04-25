@@ -14,8 +14,8 @@ export default function Login() {
   const loginMutation = useLogin();
   const brandName = "Al Rehman Foods & Spices";
   const brandLogoPath = "/al-rehman-logo.png";
-  const [email, setEmail] = useState("testuser");
-  const [password, setPassword] = useState("testuser123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +63,7 @@ export default function Login() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 System ID
@@ -71,9 +71,11 @@ export default function Login() {
               <Input
                 id="email"
                 type="text"
+                name="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="off"
                 className="bg-background/50 border-white/10 h-12 focus-visible:ring-primary/50 transition-all duration-300"
                 placeholder="Enter your system ID"
               />
@@ -86,9 +88,11 @@ export default function Login() {
               <Input
                 id="password"
                 type="password"
+                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="new-password"
                 className="bg-background/50 border-white/10 h-12 focus-visible:ring-primary/50 transition-all duration-300"
                 placeholder="••••••••"
               />
