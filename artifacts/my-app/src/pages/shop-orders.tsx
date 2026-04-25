@@ -226,19 +226,6 @@ export default function ShopOrders() {
 
       const paddedId = orderId.toString().padStart(6, "0");
       const fileName = `INV-${paddedId}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: "application/pdf" });
-
-      // On mobile, use the Web Share API to trigger the native save/download sheet.
-      if (
-        typeof navigator.share === "function" &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [file] })
-      ) {
-        await navigator.share({ title: fileName, files: [file] });
-        return;
-      }
-
-      // Desktop fallback: programmatic anchor download.
       const downloadUrl = URL.createObjectURL(pdfBlob);
       const link = document.createElement("a");
       link.href = downloadUrl;
