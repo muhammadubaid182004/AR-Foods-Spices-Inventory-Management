@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { access } from "node:fs/promises";
 import { db, ordersTable, orderLineItemsTable, itemsTable, distributorsTable, shopsTable, invoicesTable } from "@workspace/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
@@ -17,7 +18,24 @@ const router: IRouter = Router();
 const ORDER_QTY_STEP = 6;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const INVOICE_TEMPLATE_PATH = path.resolve(__dirname, "..", "template.pdf");
+
+async function resolveInvoiceTemplatePath(): Promise<string> {
+  const candidatePaths = [
+    path.resolve(__dirname, "..", "template.pdf"),
+    path.resolve(process.cwd(), "artifacts", "api-server", "src", "template.pdf"),
+  ];
+
+  for (const candidate of candidatePaths) {
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      // Try the next candidate path.
+    }
+  }
+
+  throw new Error("Invoice template not found");
+}
 
 const formatDateToISO = (date: Date | string | null) => {
   if (!date) return new Date().toISOString();
@@ -354,7 +372,8 @@ router.get("/orders/:id/invoice", requireAuth, async (req, res): Promise<void> =
         amount: parseFloat(lineItem.subtotal),
       })),
     };
-    const pdfBuffer = await generateInvoicePdf(INVOICE_TEMPLATE_PATH, payload);
+    const templatePath = await resolveInvoiceTemplatePath();
+    const pdfBuffer = await generateInvoicePdf(templatePath, payload);
 
     await saveInvoiceRecord({
       orderId: order.id,
