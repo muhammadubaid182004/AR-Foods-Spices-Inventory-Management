@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout";
-import { useGetItems, useCreateItem, useUpdateItem, useDeleteItem } from "@workspace/api-client-react";
+import { useGetItems, useCreateItem, useUpdateItem, useDeleteItem, customFetch } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetItemsQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ type Item = {
   description: string | null;
   unitPrice: number;
   stockQuantity: number;
+  isActive?: boolean;
   createdAt: string;
 };
 
@@ -48,6 +49,7 @@ export default function Items() {
   const [formDesc, setFormDesc] = useState("");
   const [formPrice, setFormPrice] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isReactivating, setIsReactivating] = useState(false);
 
   const createMutation = useCreateItem();
   const updateMutation = useUpdateItem();
@@ -125,11 +127,30 @@ export default function Items() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetItemsQueryKey() });
           setDeleteItemId(null);
-          toast({ title: "Item deleted successfully" });
+          toast({ title: "Item removed (or deactivated if used in orders)" });
         },
-        onError: () => toast({ title: "Failed to delete item", variant: "destructive" }),
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : "Failed to delete item";
+          toast({ title: message, variant: "destructive" });
+        },
       }
     );
+  };
+
+  const handleReactivate = async () => {
+    if (!editItem) return;
+    try {
+      setIsReactivating(true);
+      await customFetch(`/api/items/${editItem.id}/reactivate`, { method: "POST" });
+      await queryClient.invalidateQueries({ queryKey: getGetItemsQueryKey() });
+      setEditItem((prev) => (prev ? { ...prev, isActive: true } : prev));
+      toast({ title: "Item reactivated successfully" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to reactivate item";
+      toast({ title: message, variant: "destructive" });
+    } finally {
+      setIsReactivating(false);
+    }
   };
 
   const filteredItems = items?.filter((item) => {
@@ -327,6 +348,12 @@ export default function Items() {
                   <DialogTitle className="text-foreground">Edit Item</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-lg border border-white/10 bg-background/30 px-3 py-2">
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <span className={`text-xs font-medium ${editItem.isActive === false ? "text-amber-400" : "text-emerald-400"}`}>
+                      {editItem.isActive === false ? "Inactive" : "Active"}
+                    </span>
+                  </div>
                   <div>
                     <Label htmlFor="edit-name" className="text-foreground">Name</Label>
                     <Input
@@ -363,6 +390,15 @@ export default function Items() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
+                  {editItem.isActive === false && (
+                    <Button
+                      variant="outline"
+                      onClick={handleReactivate}
+                      disabled={isReactivating}
+                    >
+                      {isReactivating ? "Reactivating..." : "Reactivate Item"}
+                    </Button>
+                  )}
                   <Button onClick={handleEdit} disabled={updateMutation.isPending}>
                     {updateMutation.isPending ? "Updating..." : "Update Item"}
                   </Button>

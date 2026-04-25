@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -10,6 +10,7 @@ export const itemsTable = pgTable("items", {
   stockQuantity: serial("stock_quantity").notNull().default(0),
   category: text("category"),
   sku: text("sku"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

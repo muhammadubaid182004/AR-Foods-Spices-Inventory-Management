@@ -5,7 +5,6 @@ import { Layout } from "@/components/layout";
 import {
   useGetShop,
   useGetOrdersByShop,
-  useGetItems,
   useCreateOrder,
   useDeleteOrder,
   useGetRegion,
@@ -69,6 +68,12 @@ type Distributor = {
   name: string;
   contact: string | null;
 };
+type ActiveItem = {
+  id: number;
+  name: string;
+  description: string | null;
+  unitPrice: number;
+};
 
 const ORDER_QTY_STEP = 6;
 const ORDER_STATUS_META: Record<OrderStatus, {
@@ -112,7 +117,10 @@ export default function ShopOrders() {
 
   const { data: shop } = useGetShop(shopId, { query: { enabled: !!shopId } });
   const { data: orders, isLoading } = useGetOrdersByShop(shopId, { query: { enabled: !!shopId } });
-  const { data: items } = useGetItems();
+  const { data: items } = useQuery({
+    queryKey: ["active-items"],
+    queryFn: () => customFetch<ActiveItem[]>("/api/items/active", { method: "GET" }),
+  });
   const { data: region } = useGetRegion(shop?.regionId ?? 0, { query: { enabled: !!shop?.regionId } });
   const { data: distributors, isLoading: isDistributorsLoading } = useQuery({
     queryKey: ["distributors"],

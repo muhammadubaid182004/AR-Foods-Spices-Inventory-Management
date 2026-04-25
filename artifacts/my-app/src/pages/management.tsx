@@ -192,16 +192,16 @@ export default function Management() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(region); }}
-                      className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
+                      className="p-2 sm:p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeleteRegionId(region.id); }}
-                      className="p-1.5 rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-all"
+                      className="p-2 sm:p-1.5 rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-all"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
