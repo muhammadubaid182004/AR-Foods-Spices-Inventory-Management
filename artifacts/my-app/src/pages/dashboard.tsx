@@ -155,10 +155,14 @@ export default function Dashboard() {
   };
 
   const formatCurrency = (val: number) => `₨${val.toLocaleString()}`;
-  const formatDozenWithItems = (dozens: number) => {
-    const itemCount = dozens * 12;
+  const formatItemsWithDozens = (itemCount: number) => {
+    const dozens = itemCount / 12;
+    const formattedDozens =
+      Number.isInteger(dozens)
+        ? dozens.toLocaleString()
+        : dozens.toLocaleString(undefined, { maximumFractionDigits: 2 });
     const dozenLabel = dozens === 1 ? "dozen" : "dozens";
-    return `${dozens.toLocaleString()} ${dozenLabel} (${itemCount.toLocaleString()} items)`;
+    return `${itemCount.toLocaleString()} items (${formattedDozens} ${dozenLabel})`;
   };
 
   const tooltipStyle = {
@@ -456,7 +460,7 @@ export default function Dashboard() {
                             <TableCell className="text-foreground text-xs md:text-sm font-medium text-center">{item.itemName}</TableCell>
                             <TableCell className="text-foreground text-xs md:text-sm font-medium text-center">
                               <span className="inline-flex items-center rounded-md bg-emerald-500/15 text-emerald-400 px-2 py-0.5">
-                                {formatDozenWithItems(item.quantitySold)}
+                                {formatItemsWithDozens(item.quantitySold)}
                               </span>
                             </TableCell>
                           </TableRow>
