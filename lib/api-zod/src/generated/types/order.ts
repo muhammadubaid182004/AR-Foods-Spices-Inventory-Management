@@ -5,18 +5,11 @@
  * Inventory & Sales Management API
  * OpenAPI spec version: 0.1.0
  */
-
-import type { OrderStatus } from './createOrderBody';
+import type { OrderStatus } from './orderStatus';
 
 export interface Order {
   id: number;
   shopId: number;
-  /** @nullable */
-  distributorId: number | null;
-  /** @nullable */
-  distributorName: string | null;
-  /** @nullable */
-  distributorContact: string | null;
   totalAmount: number;
   status: OrderStatus;
   /** @nullable */

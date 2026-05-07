@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout";
@@ -27,6 +27,7 @@ import { customFetch } from "@workspace/api-client-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -61,6 +62,7 @@ import { format } from "date-fns";
 type LineItemEntry = {
   itemId: number;
   quantity: number;
+  priceOption: string;
 };
 type OrderStatus = "booked" | "in_progress" | "delivered" | "cancelled";
 type Distributor = {
@@ -73,6 +75,8 @@ type ActiveItem = {
   name: string;
   description: string | null;
   unitPrice: number;
+  priceOptions: Record<string, number>;
+  stockQuantity: number;
 };
 
 const ORDER_QTY_STEP = 6;
@@ -130,7 +134,7 @@ export default function ShopOrders() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDistributorId, setSelectedDistributorId] = useState<string>("");
   const [orderNotes, setOrderNotes] = useState("");
-  const [lineItems, setLineItems] = useState<LineItemEntry[]>([{ itemId: 0, quantity: ORDER_QTY_STEP }]);
+  const [lineItems, setLineItems] = useState<LineItemEntry[]>([{ itemId: 0, quantity: ORDER_QTY_STEP, priceOption: "" }]);
   const [openItemPickerIndex, setOpenItemPickerIndex] = useState<number | null>(null);
   const [invoiceOrderId, setInvoiceOrderId] = useState<number | null>(null);
   const [isInvoiceDownloading, setIsInvoiceDownloading] = useState(false);
@@ -138,6 +142,12 @@ export default function ShopOrders() {
 
   const createMutation = useCreateOrder();
   const deleteMutation = useDeleteOrder();
+
+  useEffect(() => {
+    if (distributors?.length === 1 && !selectedDistributorId) {
+      setSelectedDistributorId(distributors[0].id.toString());
+    }
+  }, [distributors, selectedDistributorId]);
 
   const invalidateDashboard = () => {
     queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
@@ -151,20 +161,45 @@ export default function ShopOrders() {
     return Math.max(ORDER_QTY_STEP, Math.ceil(safeQty / ORDER_QTY_STEP) * ORDER_QTY_STEP);
   };
 
-  const addLineItem = () => setLineItems([...lineItems, { itemId: 0, quantity: ORDER_QTY_STEP }]);
+  const addLineItem = () => setLineItems([...lineItems, { itemId: 0, quantity: ORDER_QTY_STEP, priceOption: "" }]);
   const removeLineItem = (idx: number) => setLineItems(lineItems.filter((_, i) => i !== idx));
 
-  const updateLineItem = (idx: number, field: keyof LineItemEntry, value: number) => {
+  const updateLineItem = (idx: number, updates: Partial<LineItemEntry>) => {
     setLineItems(
       lineItems.map((li, i) =>
         i === idx
           ? {
               ...li,
-              [field]: field === "quantity" ? normalizeQuantity(value) : value,
+              ...updates,
+              quantity: updates.quantity !== undefined ? normalizeQuantity(updates.quantity) : li.quantity,
             }
           : li,
       ),
     );
+  };
+
+  const getPriceOptions = (item?: ActiveItem) => {
+    const options = item?.priceOptions ?? {};
+    const entries = Object.entries(options).filter(([, price]) => Number.isFinite(price));
+    if (entries.length > 0) {
+      return Object.fromEntries(entries);
+    }
+    return {};
+  };
+  const getDefaultPriceOption = (item?: ActiveItem) => {
+    const keys = Object.keys(getPriceOptions(item));
+    return keys[0] ?? "";
+  };
+
+  const getLineUnitPrice = (lineItem: LineItemEntry) => {
+    const item = getItemById(lineItem.itemId);
+    if (!item) return 0;
+    const options = getPriceOptions(item);
+    if (lineItem.priceOption && options[lineItem.priceOption] !== undefined) {
+      return options[lineItem.priceOption]!;
+    }
+    const defaultOption = getDefaultPriceOption(item);
+    return options[defaultOption] ?? 0;
   };
 
   const handleCreateOrder = () => {
@@ -191,6 +226,10 @@ export default function ShopOrders() {
     }
 
     if (validItems.length === 0) return;
+    if (validItems.some((li) => !li.priceOption)) {
+      toast({ title: "Please select a valid price option for each item", variant: "destructive" });
+      return;
+    }
 
     createMutation.mutate(
       {
@@ -207,7 +246,7 @@ export default function ShopOrders() {
           queryClient.invalidateQueries({ queryKey: getGetOrdersByShopQueryKey(shopId) });
           invalidateDashboard();
           setShowCreateModal(false);
-          setLineItems([{ itemId: 0, quantity: ORDER_QTY_STEP }]);
+          setLineItems([{ itemId: 0, quantity: ORDER_QTY_STEP, priceOption: "" }]);
           setOpenItemPickerIndex(null);
           setSelectedDistributorId("");
           setOrderNotes("");
@@ -272,8 +311,7 @@ export default function ShopOrders() {
 
   const calcTotal = () => {
     return lineItems.reduce((sum, li) => {
-      const item = getItemById(li.itemId);
-      return sum + (item ? item.unitPrice * li.quantity : 0);
+      return sum + getLineUnitPrice(li) * li.quantity;
     }, 0);
   };
 
@@ -287,10 +325,8 @@ export default function ShopOrders() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 28 } },
   };
 
-  const formatDozenWithItems = (dozens: number) => {
-    const itemCount = dozens * 12;
-    const dozenLabel = dozens === 1 ? "dozen" : "dozens";
-    return `${dozens} ${dozenLabel} (${itemCount} items)`;
+  const formatItemsCount = (count: number) => {
+    return `${count} ${count === 1 ? "item" : "items"}`;
   };
 
   return (
@@ -486,11 +522,14 @@ export default function ShopOrders() {
       <AnimatePresence>
         {showCreateModal && (
           <Dialog open onOpenChange={(v) => !v && setShowCreateModal(false)}>
-            <DialogContent className="bg-card border-white/10 dark max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="bg-card border-white/10 dark w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle>Create Order for {shop?.name}</DialogTitle>
+                <DialogDescription>
+                  Choose a distributor, add items, and review pricing before creating the order.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-5 mt-2">
+              <div className="space-y-4 mt-2 pb-24 sm:pb-0">
                 <div className="space-y-1.5">
                   <Label>Distributor</Label>
                   <Select value={selectedDistributorId} onValueChange={setSelectedDistributorId}>
@@ -511,20 +550,23 @@ export default function ShopOrders() {
 
                 {/* Line Items */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="mb-3">
                     <Label className="text-sm font-medium">Order Items</Label>
-                    <Button variant="outline" size="sm" onClick={addLineItem} className="gap-1 h-7 text-xs">
-                      <Plus className="w-3 h-3" />
-                      Add Item
-                    </Button>
                   </div>
 
                   <div className="space-y-3">
                     {lineItems.map((li, idx) => {
                       const selectedItem = getItemById(li.itemId);
+                      const priceOptions = getPriceOptions(selectedItem);
+                      const selectedPriceOption = li.priceOption || getDefaultPriceOption(selectedItem);
+                      const selectedUnitPrice = selectedPriceOption
+                        ? (priceOptions[selectedPriceOption] ?? 0)
+                        : 0;
+                      const lineSubtotal = selectedUnitPrice * li.quantity;
                       return (
-                        <div key={idx} className="flex gap-2 items-start bg-background/30 rounded-lg p-3 border border-white/5">
-                          <div className="flex-1">
+                        <div key={idx} className="flex flex-col gap-2 bg-background/30 rounded-lg p-3 border border-white/5">
+                          <div className="flex-1 min-w-0">
+                            {/* Item picker */}
                             <Popover
                               open={openItemPickerIndex === idx}
                               onOpenChange={(open) => setOpenItemPickerIndex(open ? idx : null)}
@@ -537,9 +579,7 @@ export default function ShopOrders() {
                                   className="w-full justify-between bg-background/50 border-white/10 text-sm text-foreground hover:bg-background/60"
                                 >
                                   <span className="truncate">
-                                    {selectedItem
-                                      ? `${selectedItem.name} — ₨${selectedItem.unitPrice.toFixed(2)}`
-                                      : "Select item..."}
+                                    {selectedItem ? selectedItem.name : "Select item..."}
                                   </span>
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -556,9 +596,12 @@ export default function ShopOrders() {
                                       {items?.map((item) => (
                                         <CommandItem
                                           key={item.id}
-                                          value={`${item.name} ${item.unitPrice}`}
+                                          value={`${item.name} ${Object.keys(item.priceOptions ?? {}).join(" ")}`}
                                           onSelect={() => {
-                                            updateLineItem(idx, "itemId", item.id);
+                                            updateLineItem(idx, {
+                                              itemId: item.id,
+                                              priceOption: getDefaultPriceOption(item),
+                                            });
                                             setOpenItemPickerIndex(null);
                                           }}
                                         >
@@ -569,7 +612,9 @@ export default function ShopOrders() {
                                             )}
                                           />
                                           <span className="flex-1 truncate">{item.name}</span>
-                                          <span className="text-xs text-muted-foreground">₨{item.unitPrice.toFixed(2)}</span>
+                                          <span className="text-xs text-muted-foreground">
+                                            {Object.keys(item.priceOptions ?? {}).length} options
+                                          </span>
                                         </CommandItem>
                                       ))}
                                     </CommandGroup>
@@ -577,53 +622,99 @@ export default function ShopOrders() {
                                 </Command>
                               </PopoverContent>
                             </Popover>
-                            {selectedItem && (
-                              <div className="text-xs text-muted-foreground mt-1 pl-1 flex items-center gap-3">
-                                <span>Stock: {formatDozenWithItems(selectedItem.stockQuantity)}</span>
-                                <span>Selected: {formatDozenWithItems(li.quantity)}</span>
-                                {li.itemId > 0 && li.quantity > 0 && (
-                                  <span className="text-primary font-medium">
-                                    Subtotal: ₨{(selectedItem.unitPrice * li.quantity).toFixed(2)}
-                                  </span>
+
+                            {/* Price option + quantity on same row */}
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                {selectedItem && (
+                                  <Select
+                                    value={selectedPriceOption}
+                                    onValueChange={(value) => updateLineItem(idx, { priceOption: value })}
+                                  >
+                                    <SelectTrigger className="w-full bg-background/50 border-white/10 h-8 text-xs">
+                                      <SelectValue placeholder="Select price option" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(priceOptions).map(([optionKey, price]) => (
+                                        <SelectItem key={optionKey} value={optionKey}>
+                                          {optionKey} - ₨{price.toFixed(2)}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 )}
+                              </div>
+                              <div className="flex items-center justify-end gap-1 shrink-0">
+                                <button
+                                  className="w-7 h-7 rounded-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
+                                  onClick={() => updateLineItem(idx, { quantity: li.quantity - ORDER_QTY_STEP })}
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <Input
+                                  type="number"
+                                  value={li.quantity}
+                                  min={ORDER_QTY_STEP}
+                                  step={ORDER_QTY_STEP}
+                                  onChange={(e) =>
+                                    updateLineItem(idx, { quantity: parseInt(e.target.value, 10) || ORDER_QTY_STEP })
+                                  }
+                                  className="w-16 text-center bg-background/50 border-white/10 h-8 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                                <button
+                                  className="w-7 h-7 rounded-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
+                                  onClick={() => updateLineItem(idx, { quantity: li.quantity + ORDER_QTY_STEP })}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                                {lineItems.length > 1 && (
+                                  <button
+                                    onClick={() => removeLineItem(idx)}
+                                    className="w-7 h-7 rounded-md hover:bg-destructive/15 flex items-center justify-center text-muted-foreground hover:text-destructive transition-all ml-1"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Full-width meta row */}
+                            {selectedItem && (
+                              <div className="mt-2.5 w-full grid grid-cols-2 sm:grid-cols-4 gap-2 text-[12px] sm:text-xs">
+                                <div className="w-full min-w-0 flex items-center gap-1.5 rounded-md border border-white/10 bg-background/40 px-2 py-1 text-muted-foreground">
+                                    <Package className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="font-medium text-foreground">{li.quantity}</span>
+                                    <span>units</span>
+                                </div>
+                                <div className="w-full min-w-0 flex items-center gap-1.5 rounded-md border border-white/10 bg-background/40 px-2 py-1 text-muted-foreground">
+                                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Option</span>
+                                    <span className="font-medium text-foreground">{selectedPriceOption || "—"}</span>
+                                </div>
+                                <div className="w-full min-w-0 flex items-center gap-1.5 rounded-md border border-white/10 bg-background/40 px-2 py-1 text-muted-foreground">
+                                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">Unit</span>
+                                    <span className="font-medium text-foreground">₨{selectedUnitPrice.toFixed(2)}</span>
+                                </div>
+                                <div className="w-full min-w-0 flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 py-1">
+                                  <span className="text-[11px] uppercase tracking-wide text-primary/80">Subtotal</span>
+                                  <span className="font-semibold text-primary">₨{lineSubtotal.toFixed(2)}</span>
+                                </div>
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              className="w-7 h-7 rounded-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
-                              onClick={() => updateLineItem(idx, "quantity", li.quantity - ORDER_QTY_STEP)}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <Input
-                              type="number"
-                              value={li.quantity}
-                              min={ORDER_QTY_STEP}
-                              step={ORDER_QTY_STEP}
-                              onChange={(e) =>
-                                updateLineItem(idx, "quantity", parseInt(e.target.value, 10) || ORDER_QTY_STEP)
-                              }
-                              className="w-16 text-center bg-background/50 border-white/10 h-7 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <button
-                              className="w-7 h-7 rounded-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors text-muted-foreground hover:text-foreground"
-                              onClick={() => updateLineItem(idx, "quantity", li.quantity + ORDER_QTY_STEP)}
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                            {lineItems.length > 1 && (
-                              <button
-                                onClick={() => removeLineItem(idx)}
-                                className="w-7 h-7 rounded-md hover:bg-destructive/15 flex items-center justify-center text-muted-foreground hover:text-destructive transition-all ml-1"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
+
                         </div>
                       );
                     })}
+
+                    {/* Add Item button — lives at the bottom of the list */}
+                    <button
+                      type="button"
+                      onClick={addLineItem}
+                      className="w-full flex items-center justify-center gap-2 h-9 rounded-lg border border-dashed border-white/15 text-xs text-muted-foreground hover:text-foreground hover:border-white/30 hover:bg-white/5 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Item
+                    </button>
                   </div>
                 </div>
 
@@ -644,9 +735,10 @@ export default function ShopOrders() {
                   />
                 </div>
               </div>
-              <DialogFooter className="mt-4">
-                <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+              <DialogFooter className="mt-4 sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-t border-white/10 flex-col-reverse sm:flex-row gap-2">
+                <Button className="w-full sm:w-auto" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={handleCreateOrder}
                   disabled={lineItems.every((li) => li.itemId === 0) || createMutation.isPending || !selectedDistributorId}
                 >
@@ -663,6 +755,9 @@ export default function ShopOrders() {
         <DialogContent className="bg-card border-white/10 dark max-w-md">
           <DialogHeader>
             <DialogTitle>Download Invoice</DialogTitle>
+            <DialogDescription>
+              Download the invoice PDF for this booked order.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>Order #{invoiceOrderId} is booked and ready for invoice download.</p>

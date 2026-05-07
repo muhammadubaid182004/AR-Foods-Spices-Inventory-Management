@@ -6,8 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreateOrderLineItem {
-  itemId: number;
-  quantity: number;
-  priceOption?: string;
-}
+export type ItemPriceOptions = {[key: string]: number};

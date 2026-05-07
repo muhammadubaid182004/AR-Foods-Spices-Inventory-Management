@@ -108,12 +108,15 @@ export interface UpdateShopBody {
   contactPhone?: string | null;
 }
 
+export type ItemPriceOptions = {[key: string]: number};
+
 export interface Item {
   id: number;
   name: string;
   /** @nullable */
   description: string | null;
   unitPrice: number;
+  priceOptions: ItemPriceOptions;
   stockQuantity: number;
   /** @nullable */
   category: string | null;
@@ -122,11 +125,14 @@ export interface Item {
   createdAt: string;
 }
 
+export type CreateItemBodyPriceOptions = {[key: string]: number};
+
 export interface CreateItemBody {
   name: string;
   /** @nullable */
   description?: string | null;
   unitPrice: number;
+  priceOptions?: CreateItemBodyPriceOptions;
   stockQuantity: number;
   /** @nullable */
   category?: string | null;
@@ -134,11 +140,14 @@ export interface CreateItemBody {
   sku?: string | null;
 }
 
+export type UpdateItemBodyPriceOptions = {[key: string]: number};
+
 export interface UpdateItemBody {
   name?: string;
   /** @nullable */
   description?: string | null;
   unitPrice?: number;
+  priceOptions?: UpdateItemBodyPriceOptions;
   stockQuantity?: number;
   /** @nullable */
   category?: string | null;
@@ -146,16 +155,19 @@ export interface UpdateItemBody {
   sku?: string | null;
 }
 
-export type OrderStatus = 'booked' | 'in_progress' | 'delivered' | 'cancelled';
+export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
+
+
+export const OrderStatus = {
+  booked: 'booked',
+  in_progress: 'in_progress',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
 
 export interface Order {
   id: number;
   shopId: number;
-  distributorId: number | null;
-  /** @nullable */
-  distributorName: string | null;
-  /** @nullable */
-  distributorContact: string | null;
   totalAmount: number;
   status: OrderStatus;
   /** @nullable */
@@ -177,11 +189,6 @@ export interface OrderLineItem {
 export interface OrderDetail {
   id: number;
   shopId: number;
-  distributorId: number | null;
-  /** @nullable */
-  distributorName: string | null;
-  /** @nullable */
-  distributorContact: string | null;
   totalAmount: number;
   status: OrderStatus;
   /** @nullable */
@@ -194,13 +201,12 @@ export interface OrderDetail {
 export interface CreateOrderLineItem {
   itemId: number;
   quantity: number;
+  priceOption?: string;
 }
 
 export interface CreateOrderBody {
-  distributorId: number;
   /** @nullable */
   notes?: string | null;
-  /** @nullable */
   status?: OrderStatus | null;
   lineItems: CreateOrderLineItem[];
 }
@@ -219,3 +225,4 @@ month?: number;
  */
 year?: number;
 };
+

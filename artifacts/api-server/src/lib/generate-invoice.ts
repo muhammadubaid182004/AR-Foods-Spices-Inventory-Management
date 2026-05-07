@@ -261,7 +261,8 @@ export async function generateInvoicePdf(templatePath: string, payload: InvoiceP
   let subtotal = 0;
   displayedItems.forEach((item, index) => {
     const y = rowStartY + index * rowHeight;
-    const description = trimToWidth(item.description || item.name, 188, font, 9.5);
+    // Invoice line rows should always display product name only.
+    const description = trimToWidth(item.name, 188, font, 9.5);
     const quantity = safe(item.quantity);
     const unitPrice = fmtCurrency(item.unitPrice);
     const amount = item.amount;

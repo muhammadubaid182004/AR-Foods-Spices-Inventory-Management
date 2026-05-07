@@ -32,9 +32,15 @@ type Item = {
   name: string;
   description: string | null;
   unitPrice: number;
+  priceOptions: Record<string, number>;
   stockQuantity: number;
   isActive?: boolean;
   createdAt: string;
+};
+
+type PriceOptionEntry = {
+  option: string;
+  unitPrice: string;
 };
 
 export default function Items() {
@@ -47,7 +53,7 @@ export default function Items() {
   const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
-  const [formPrice, setFormPrice] = useState("");
+  const [formPriceOptions, setFormPriceOptions] = useState<PriceOptionEntry[]>([{ option: "", unitPrice: "" }]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isReactivating, setIsReactivating] = useState(false);
 
@@ -58,7 +64,7 @@ export default function Items() {
   const openCreate = () => {
     setFormName("");
     setFormDesc("");
-    setFormPrice("");
+    setFormPriceOptions([{ option: "", unitPrice: "" }]);
     setShowCreateModal(true);
   };
 
@@ -66,20 +72,77 @@ export default function Items() {
     setEditItem(item);
     setFormName(item.name);
     setFormDesc(item.description ?? "");
-    setFormPrice(item.unitPrice.toString());
+    const entries = Object.entries(item.priceOptions ?? {}).map(([option, unitPrice]) => ({
+      option,
+      unitPrice: String(Math.trunc(unitPrice)),
+    }));
+    setFormPriceOptions(entries.length > 0 ? entries : [{ option: "", unitPrice: "" }]);
+  };
+
+  const updatePriceOptionEntry = (index: number, field: keyof PriceOptionEntry, value: string) => {
+    setFormPriceOptions((prev) =>
+      prev.map((entry, i) => (i === index ? { ...entry, [field]: value } : entry))
+    );
+  };
+
+  const addPriceOptionEntry = () => {
+    setFormPriceOptions((prev) => [...prev, { option: "", unitPrice: "" }]);
+  };
+
+  const removePriceOptionEntry = (index: number) => {
+    setFormPriceOptions((prev) => {
+      if (prev.length === 1) return [{ option: "", unitPrice: "" }];
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const buildPriceOptionsJson = (entries: PriceOptionEntry[]): Record<string, number> | null => {
+    const validEntries: Array<[string, number]> = [];
+
+    for (const entry of entries) {
+      const optionText = entry.option.trim();
+      const unitPriceText = entry.unitPrice.trim();
+      if (!optionText && !unitPriceText) {
+        continue;
+      }
+
+      const parsedOption = Number.parseInt(optionText, 10);
+      const parsedUnitPrice = Number.parseInt(unitPriceText, 10);
+      if (!Number.isInteger(parsedOption) || parsedOption <= 0 || !Number.isInteger(parsedUnitPrice) || parsedUnitPrice < 0) {
+        return null;
+      }
+
+      validEntries.push([String(parsedOption), parsedUnitPrice]);
+    }
+
+    if (validEntries.length === 0) {
+      return null;
+    }
+
+    return Object.fromEntries(validEntries);
+  };
+
+  const deriveUnitPriceFromPriceOptions = (priceOptions: Record<string, number>): number => {
+    const values = Object.values(priceOptions);
+    return values[0] ?? 0;
   };
 
   const handleCreate = () => {
-    if (!formName.trim() || !formPrice.trim()) return;
-    const price = parseFloat(formPrice);
-    if (isNaN(price) || price < 0) return;
+    if (!formName.trim()) return;
+    const priceOptions = buildPriceOptionsJson(formPriceOptions);
+    if (!priceOptions) {
+      toast({ title: "Price options require integer option and integer unit price", variant: "destructive" });
+      return;
+    }
+    const unitPrice = deriveUnitPriceFromPriceOptions(priceOptions);
 
     createMutation.mutate(
       {
         data: {
           name: formName.trim(),
           description: formDesc.trim() || null,
-          unitPrice: price,
+          unitPrice,
+          priceOptions,
           stockQuantity: 0,
         },
       },
@@ -95,9 +158,13 @@ export default function Items() {
   };
 
   const handleEdit = () => {
-    if (!editItem || !formName.trim() || !formPrice.trim()) return;
-    const price = parseFloat(formPrice);
-    if (isNaN(price) || price < 0) return;
+    if (!editItem || !formName.trim()) return;
+    const priceOptions = buildPriceOptionsJson(formPriceOptions);
+    if (!priceOptions) {
+      toast({ title: "Price options require integer option and integer unit price", variant: "destructive" });
+      return;
+    }
+    const unitPrice = deriveUnitPriceFromPriceOptions(priceOptions);
 
     updateMutation.mutate(
       {
@@ -105,7 +172,8 @@ export default function Items() {
         data: {
           name: formName.trim(),
           description: formDesc.trim() || null,
-          unitPrice: price,
+          unitPrice,
+          priceOptions,
         },
       },
       {
@@ -257,13 +325,9 @@ export default function Items() {
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-base sm:text-sm text-muted-foreground">
-                    <span className="text-base leading-none">₨</span>
-                    <span>{item.unitPrice.toFixed(2)}</span>
-                  </div>
+                <div className="flex items-center justify-end">
                   <div className="text-xs sm:text-sm text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString()}
+                    {Object.keys(item.priceOptions ?? {}).length} price option(s) configured
                   </div>
                 </div>
               </motion.div>
@@ -314,18 +378,36 @@ export default function Items() {
                       className="bg-background/50 border-white/10"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="create-price" className="text-foreground">Unit Price</Label>
-                    <Input
-                      id="create-price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formPrice}
-                      onChange={(e) => setFormPrice(e.target.value)}
-                      placeholder="0.00"
-                      className="bg-background/50 border-white/10"
-                    />
+                  <div className="space-y-3">
+                    <Label className="text-foreground">Price Options (Integer key to integer unit price)</Label>
+                    {formPriceOptions.map((entry, index) => (
+                      <div key={`create-price-option-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={entry.option}
+                          onChange={(e) => updatePriceOptionEntry(index, "option", e.target.value)}
+                          placeholder="Price Option"
+                          className="bg-background/50 border-white/10"
+                        />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={entry.unitPrice}
+                          onChange={(e) => updatePriceOptionEntry(index, "unitPrice", e.target.value)}
+                          placeholder="Unit Price"
+                          className="bg-background/50 border-white/10"
+                        />
+                        <Button variant="outline" type="button" onClick={() => removePriceOptionEntry(index)}>
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" type="button" onClick={addPriceOptionEntry}>
+                      Add Price Option
+                    </Button>
                   </div>
                 </div>
                 <DialogFooter>
@@ -374,18 +456,36 @@ export default function Items() {
                       className="bg-background/50 border-white/10"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="edit-price" className="text-foreground">Unit Price</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formPrice}
-                      onChange={(e) => setFormPrice(e.target.value)}
-                      placeholder="0.00"
-                      className="bg-background/50 border-white/10"
-                    />
+                  <div className="space-y-3">
+                    <Label className="text-foreground">Price Options (Integer key to integer unit price)</Label>
+                    {formPriceOptions.map((entry, index) => (
+                      <div key={`edit-price-option-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={entry.option}
+                          onChange={(e) => updatePriceOptionEntry(index, "option", e.target.value)}
+                          placeholder="Price Option (Key) e.g. 10"
+                          className="bg-background/50 border-white/10"
+                        />
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={entry.unitPrice}
+                          onChange={(e) => updatePriceOptionEntry(index, "unitPrice", e.target.value)}
+                          placeholder="Unit Price (Value) e.g. 8"
+                          className="bg-background/50 border-white/10"
+                        />
+                        <Button variant="outline" type="button" onClick={() => removePriceOptionEntry(index)}>
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" type="button" onClick={addPriceOptionEntry}>
+                      Add Price Option
+                    </Button>
                   </div>
                 </div>
                 <DialogFooter>

@@ -276,6 +276,7 @@ export const GetItemsResponseItem = zod.object({
   "name": zod.string(),
   "description": zod.string().nullable(),
   "unitPrice": zod.number(),
+  "priceOptions": zod.record(zod.string(), zod.number()),
   "stockQuantity": zod.number(),
   "category": zod.string().nullable(),
   "sku": zod.string().nullable(),
@@ -291,6 +292,7 @@ export const CreateItemBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unitPrice": zod.number(),
+  "priceOptions": zod.record(zod.string(), zod.number()).optional(),
   "stockQuantity": zod.number(),
   "category": zod.string().nullish(),
   "sku": zod.string().nullish()
@@ -308,6 +310,7 @@ export const UpdateItemBody = zod.object({
   "name": zod.string().optional(),
   "description": zod.string().nullish(),
   "unitPrice": zod.number().optional(),
+  "priceOptions": zod.record(zod.string(), zod.number()).optional(),
   "stockQuantity": zod.number().optional(),
   "category": zod.string().nullish(),
   "sku": zod.string().nullish()
@@ -318,6 +321,7 @@ export const UpdateItemResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullable(),
   "unitPrice": zod.number(),
+  "priceOptions": zod.record(zod.string(), zod.number()),
   "stockQuantity": zod.number(),
   "category": zod.string().nullable(),
   "sku": zod.string().nullable(),
@@ -344,7 +348,7 @@ export const GetOrdersByShopResponseItem = zod.object({
   "id": zod.number(),
   "shopId": zod.number(),
   "totalAmount": zod.number(),
-  "status": zod.string(),
+  "status": zod.enum(['booked', 'in_progress', 'delivered', 'cancelled']),
   "notes": zod.string().nullable(),
   "placedAt": zod.string(),
   "createdAt": zod.string(),
@@ -361,12 +365,12 @@ export const CreateOrderParams = zod.object({
 })
 
 export const CreateOrderBody = zod.object({
-  "distributorId": zod.number(),
   "notes": zod.string().nullish(),
-  "status": zod.enum(["booked", "in_progress", "delivered", "cancelled"]).nullish(),
+  "status": zod.union([zod.enum(['booked', 'in_progress', 'delivered', 'cancelled']),zod.null()]).optional(),
   "lineItems": zod.array(zod.object({
   "itemId": zod.number(),
-  "quantity": zod.number()
+  "quantity": zod.number(),
+  "priceOption": zod.string().optional()
 }))
 })
 
@@ -382,7 +386,7 @@ export const GetOrderResponse = zod.object({
   "id": zod.number(),
   "shopId": zod.number(),
   "totalAmount": zod.number(),
-  "status": zod.string(),
+  "status": zod.enum(['booked', 'in_progress', 'delivered', 'cancelled']),
   "notes": zod.string().nullable(),
   "placedAt": zod.string(),
   "createdAt": zod.string(),
@@ -403,4 +407,5 @@ export const GetOrderResponse = zod.object({
 export const DeleteOrderParams = zod.object({
   "id": zod.coerce.number()
 })
+
 

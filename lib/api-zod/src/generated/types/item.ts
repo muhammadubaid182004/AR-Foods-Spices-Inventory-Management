@@ -5,6 +5,7 @@
  * Inventory & Sales Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { ItemPriceOptions } from './itemPriceOptions';
 
 export interface Item {
   id: number;
@@ -12,6 +13,7 @@ export interface Item {
   /** @nullable */
   description: string | null;
   unitPrice: number;
+  priceOptions: ItemPriceOptions;
   stockQuantity: number;
   /** @nullable */
   category: string | null;

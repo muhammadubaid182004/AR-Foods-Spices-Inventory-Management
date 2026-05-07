@@ -11,13 +11,38 @@ import {
 
 const router: IRouter = Router();
 
+const parsePriceOptions = (input: unknown): Record<string, number> | null => {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+
+  const validEntries = Object.entries(input).filter(
+    ([key, value]) => key.trim().length > 0 && typeof value === "number" && Number.isFinite(value) && value >= 0,
+  );
+
+  if (validEntries.length === 0) return null;
+
+  return Object.fromEntries(validEntries);
+};
+
+const getDerivedUnitPrice = (priceOptions: Record<string, number>): number => {
+  const values = Object.values(priceOptions);
+  return values[0] ?? 0;
+};
+
+const mapItemResponse = (item: typeof itemsTable.$inferSelect) => {
+  const priceOptions = parsePriceOptions(item.priceOptions) ?? {};
+  return {
+    ...item,
+    unitPrice: getDerivedUnitPrice(priceOptions),
+    priceOptions,
+    createdAt: item.createdAt.toISOString(),
+  };
+};
+
 router.get("/items", requireAuth, async (_req, res): Promise<void> => {
   const items = await db.select().from(itemsTable).orderBy(itemsTable.name);
-  res.json(items.map(i => ({
-    ...i,
-    unitPrice: parseFloat(i.unitPrice),
-    createdAt: i.createdAt.toISOString(),
-  })));
+  res.json(items.map(mapItemResponse));
 });
 
 router.get("/items/active", requireAuth, async (_req, res): Promise<void> => {
@@ -27,11 +52,7 @@ router.get("/items/active", requireAuth, async (_req, res): Promise<void> => {
     .where(and(eq(itemsTable.isActive, true)))
     .orderBy(itemsTable.name);
 
-  res.json(items.map((i) => ({
-    ...i,
-    unitPrice: parseFloat(i.unitPrice),
-    createdAt: i.createdAt.toISOString(),
-  })));
+  res.json(items.map(mapItemResponse));
 });
 
 router.post("/items", requireAuth, async (req, res): Promise<void> => {
@@ -41,12 +62,25 @@ router.post("/items", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const [item] = await db.insert(itemsTable).values({
-    ...parsed.data,
-    unitPrice: String(parsed.data.unitPrice),
-  }).returning();
+  const parsedPriceOptions = parsePriceOptions(parsed.data.priceOptions);
+  if (!parsedPriceOptions) {
+    res.status(400).json({ error: "priceOptions must include at least one valid price option" });
+    return;
+  }
 
-  res.status(201).json({ ...item, unitPrice: parseFloat(item.unitPrice), createdAt: item.createdAt.toISOString() });
+  const [item] = await db
+    .insert(itemsTable)
+    .values({
+      name: parsed.data.name,
+      description: parsed.data.description ?? null,
+      priceOptions: parsedPriceOptions,
+      stockQuantity: parsed.data.stockQuantity,
+      category: parsed.data.category ?? null,
+      sku: parsed.data.sku ?? null,
+    })
+    .returning();
+
+  res.status(201).json(mapItemResponse(item));
 });
 
 router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
@@ -62,9 +96,25 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const [existingItem] = await db
+    .select()
+    .from(itemsTable)
+    .where(eq(itemsTable.id, params.data.id));
+
+  if (!existingItem) {
+    res.status(404).json({ error: "Item not found" });
+    return;
+  }
+
   const updateData: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.unitPrice !== undefined) {
-    updateData["unitPrice"] = String(parsed.data.unitPrice);
+  delete updateData["unitPrice"];
+  if (parsed.data.priceOptions !== undefined) {
+    const parsedPriceOptions = parsePriceOptions(parsed.data.priceOptions);
+    if (!parsedPriceOptions) {
+      res.status(400).json({ error: "priceOptions must include at least one valid price option" });
+      return;
+    }
+    updateData["priceOptions"] = parsedPriceOptions;
   }
 
   const [item] = await db
@@ -73,12 +123,7 @@ router.patch("/items/:id", requireAuth, async (req, res): Promise<void> => {
     .where(eq(itemsTable.id, params.data.id))
     .returning();
 
-  if (!item) {
-    res.status(404).json({ error: "Item not found" });
-    return;
-  }
-
-  res.json({ ...item, unitPrice: parseFloat(item.unitPrice), createdAt: item.createdAt.toISOString() });
+  res.json(mapItemResponse(item));
 });
 
 router.post("/items/:id/reactivate", requireAuth, async (req, res): Promise<void> => {
@@ -99,7 +144,7 @@ router.post("/items/:id/reactivate", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  res.json({ ...item, unitPrice: parseFloat(item.unitPrice), createdAt: item.createdAt.toISOString() });
+  res.json(mapItemResponse(item));
 });
 
 router.delete("/items/:id", requireAuth, async (req, res): Promise<void> => {

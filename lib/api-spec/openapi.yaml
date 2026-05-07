@@ -841,6 +841,10 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: number
+        priceOptions:
+          type: object
+          additionalProperties:
+            type: number
         stockQuantity:
           type: integer
         category:
@@ -854,6 +858,7 @@ components:
         - name
         - description
         - unitPrice
+        - priceOptions
         - stockQuantity
         - category
         - sku
@@ -868,6 +873,10 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: number
+        priceOptions:
+          type: object
+          additionalProperties:
+            type: number
         stockQuantity:
           type: integer
         category:
@@ -888,6 +897,10 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: number
+        priceOptions:
+          type: object
+          additionalProperties:
+            type: number
         stockQuantity:
           type: integer
         category:
@@ -1009,6 +1022,8 @@ components:
           type: integer
         quantity:
           type: integer
+        priceOption:
+          type: string
       required:
         - itemId
         - quantity

@@ -7,6 +7,7 @@
  */
 
 export * from './createItemBody';
+export * from './createItemBodyPriceOptions';
 export * from './createOrderBody';
 export * from './createOrderLineItem';
 export * from './createRegionBody';
@@ -17,18 +18,21 @@ export * from './getLoadChartParams';
 export * from './getRegionSalesDetailParams';
 export * from './healthStatus';
 export * from './item';
+export * from './itemPriceOptions';
 export * from './loadChartItem';
 export * from './loginBody';
 export * from './loginResponse';
 export * from './order';
 export * from './orderDetail';
 export * from './orderLineItem';
+export * from './orderStatus';
 export * from './region';
 export * from './salesByRegion';
 export * from './salesByShop';
 export * from './salesTimePoint';
 export * from './shop';
 export * from './updateItemBody';
+export * from './updateItemBodyPriceOptions';
 export * from './updateRegionBody';
 export * from './updateShopBody';
 export * from './user';

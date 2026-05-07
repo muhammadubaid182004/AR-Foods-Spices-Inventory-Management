@@ -6,14 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreateOrderLineItem } from './createOrderLineItem';
-
-export type OrderStatus = 'booked' | 'in_progress' | 'delivered' | 'cancelled';
+import type { OrderStatus } from './orderStatus';
 
 export interface CreateOrderBody {
-  distributorId: number;
   /** @nullable */
   notes?: string | null;
-  /** @nullable */
   status?: OrderStatus | null;
   lineItems: CreateOrderLineItem[];
 }

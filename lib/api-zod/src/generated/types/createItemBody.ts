@@ -5,12 +5,14 @@
  * Inventory & Sales Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateItemBodyPriceOptions } from './createItemBodyPriceOptions';
 
 export interface CreateItemBody {
   name: string;
   /** @nullable */
   description?: string | null;
   unitPrice: number;
+  priceOptions?: CreateItemBodyPriceOptions;
   stockQuantity: number;
   /** @nullable */
   category?: string | null;

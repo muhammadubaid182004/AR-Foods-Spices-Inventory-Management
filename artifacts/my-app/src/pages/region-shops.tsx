@@ -276,7 +276,7 @@ export default function RegionShops() {
                     </div>
                     <h3 className="font-semibold text-foreground leading-tight">{shop.name}</h3>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(shop); }}
                       className="p-1.5 rounded-md hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
@@ -349,7 +349,7 @@ export default function RegionShops() {
                 <DialogTitle>Add Shop</DialogTitle>
               </DialogHeader>
               <ShopFormFields />
-              <DialogFooter className="mt-4">
+              <DialogFooter className="mt-4 gap-2">
                 <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
                 <Button onClick={handleCreate} disabled={!formName.trim() || createMutation.isPending}>
                   {createMutation.isPending ? "Creating..." : "Create Shop"}
@@ -369,7 +369,7 @@ export default function RegionShops() {
                 <DialogTitle>Edit Shop</DialogTitle>
               </DialogHeader>
               <ShopFormFields />
-              <DialogFooter className="mt-4">
+              <DialogFooter className="mt-4 gap-2">
                 <Button variant="outline" onClick={() => setEditShop(null)}>Cancel</Button>
                 <Button onClick={handleEdit} disabled={!formName.trim() || updateMutation.isPending}>
                   {updateMutation.isPending ? "Saving..." : "Save Changes"}

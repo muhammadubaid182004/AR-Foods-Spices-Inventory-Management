@@ -51,6 +51,23 @@ const formatDisplayDate = (date: Date | string | null) => {
 };
 
 const buildInvoiceNumber = (orderId: number) => `INV-${orderId.toString().padStart(6, "0")}`;
+const normalizePriceOptions = (input: unknown): Record<string, number> => {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {};
+  }
+
+  const entries = Object.entries(input).filter(
+    ([key, value]) => key.trim().length > 0 && typeof value === "number" && Number.isFinite(value) && value >= 0,
+  );
+  if (entries.length === 0) return {};
+  return Object.fromEntries(entries);
+};
+
+const getDefaultPriceOptionKey = (priceOptions: Record<string, number>): string => {
+  const keys = Object.keys(priceOptions);
+  if (keys.length === 0) return "";
+  return keys[0]!;
+};
 
 const saveInvoiceRecord = async (args: {
   orderId: number;
@@ -209,7 +226,13 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const { lineItems, notes, distributorId } = parsed.data;
+  const { lineItems, notes } = parsed.data;
+  const distributorId = Number((req.body as { distributorId?: unknown }).distributorId);
+
+  if (!Number.isInteger(distributorId) || distributorId <= 0) {
+    res.status(400).json({ error: "Please select a valid distributor" });
+    return;
+  }
 
   const [distributor] = await db
     .select({
@@ -225,7 +248,7 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  // Validate items and enforce quantity steps
+  // Validate items and quantity
   const itemIds = lineItems.map(li => li.itemId);
   const items = await db
     .select()
@@ -247,7 +270,19 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
       res.status(400).json({ error: `Quantity for ${item.name} must be in multiples of ${ORDER_QTY_STEP}` });
       return;
     }
-    const unitPrice = parseFloat(item.unitPrice);
+    const normalizedPriceOptions = normalizePriceOptions(item.priceOptions);
+    if (Object.keys(normalizedPriceOptions).length === 0) {
+      res.status(400).json({ error: `Item ${item.name} has no price options configured` });
+      return;
+    }
+    const selectedOption = li.priceOption && normalizedPriceOptions[li.priceOption] !== undefined
+      ? li.priceOption
+      : getDefaultPriceOptionKey(normalizedPriceOptions);
+    const unitPrice = normalizedPriceOptions[selectedOption];
+    if (unitPrice === undefined) {
+      res.status(400).json({ error: `Invalid price option selected for ${item.name}` });
+      return;
+    }
     const subtotal = unitPrice * li.quantity;
     totalAmount += subtotal;
     lineItemsToInsert.push({
