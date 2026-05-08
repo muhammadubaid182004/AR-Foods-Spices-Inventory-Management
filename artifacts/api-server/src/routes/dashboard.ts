@@ -104,18 +104,24 @@ router.get("/dashboard/load-chart", requireAuth, async (req, res): Promise<void>
   const { month, year } = req.query;
   const monthNum = month ? Number.parseInt(month as string, 10) : undefined;
   const yearNum = year ? Number.parseInt(year as string, 10) : undefined;
+  const priceOptionExpr = sql<string>`NULLIF(${orderLineItemsTable.priceOption}, '')`;
 
   const query = db
     .select({
       itemId: itemsTable.id,
       itemName: itemsTable.name,
+      priceOption: sql<string>`COALESCE(${priceOptionExpr}, 'Default')`,
       quantitySold: sql<number>`COALESCE(SUM(${orderLineItemsTable.quantity}), 0)`,
     })
     .from(orderLineItemsTable)
     .innerJoin(itemsTable, eq(itemsTable.id, orderLineItemsTable.itemId))
     .innerJoin(ordersTable, eq(ordersTable.id, orderLineItemsTable.orderId))
-    .groupBy(itemsTable.id, itemsTable.name)
-    .orderBy(sql`COALESCE(SUM(${orderLineItemsTable.quantity}), 0) DESC`);
+    .groupBy(itemsTable.id, itemsTable.name, priceOptionExpr)
+    .orderBy(
+      sql`COALESCE(SUM(${orderLineItemsTable.quantity}), 0) DESC`,
+      itemsTable.name,
+      priceOptionExpr,
+    );
 
   if (yearNum && monthNum && monthNum >= 1 && monthNum <= 12) {
     const start = new Date(Date.UTC(yearNum, monthNum - 1, 1));
@@ -130,7 +136,12 @@ router.get("/dashboard/load-chart", requireAuth, async (req, res): Promise<void>
   }
 
   const rows = await query;
-  res.json(rows.map(r => ({ itemId: r.itemId, itemName: r.itemName, quantitySold: r.quantitySold })));
+  res.json(rows.map(r => ({
+    itemId: r.itemId,
+    itemName: r.itemName,
+    priceOption: r.priceOption,
+    quantitySold: r.quantitySold,
+  })));
 });
 
 router.get("/dashboard/day-metrics", requireAuth, async (req, res): Promise<void> => {

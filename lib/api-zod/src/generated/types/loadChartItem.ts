@@ -9,5 +9,6 @@
 export interface LoadChartItem {
   itemId: number;
   itemName: string;
+  priceOption: string;
   quantitySold: number;
 }

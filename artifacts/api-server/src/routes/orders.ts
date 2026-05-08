@@ -51,6 +51,8 @@ const formatDisplayDate = (date: Date | string | null) => {
 };
 
 const buildInvoiceNumber = (orderId: number) => `INV-${orderId.toString().padStart(6, "0")}`;
+const buildInvoiceItemDescription = (itemName: string, priceOption: string) =>
+  `${itemName} - ${priceOption} Rs Packet`;
 const normalizePriceOptions = (input: unknown): Record<string, number> => {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return {};
@@ -142,6 +144,7 @@ const getOrderDetails = async (orderId: number) => {
       itemId: orderLineItemsTable.itemId,
       itemName: itemsTable.name,
       itemDescription: itemsTable.description,
+      priceOption: orderLineItemsTable.priceOption,
       quantity: orderLineItemsTable.quantity,
       unitPrice: orderLineItemsTable.unitPrice,
       subtotal: orderLineItemsTable.subtotal,
@@ -258,7 +261,7 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
   const itemMap = new Map(items.map(i => [i.id, i]));
 
   let totalAmount = 0;
-  const lineItemsToInsert: Array<{ itemId: number; quantity: number; unitPrice: string; subtotal: string }> = [];
+  const lineItemsToInsert: Array<{ itemId: number; priceOption: string; quantity: number; unitPrice: string; subtotal: string }> = [];
 
   for (const li of lineItems) {
     const item = itemMap.get(li.itemId);
@@ -287,6 +290,7 @@ router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void
     totalAmount += subtotal;
     lineItemsToInsert.push({
       itemId: li.itemId,
+      priceOption: selectedOption,
       quantity: li.quantity,
       unitPrice: String(unitPrice),
       subtotal: String(subtotal),
@@ -401,7 +405,7 @@ router.get("/orders/:id/invoice", requireAuth, async (req, res): Promise<void> =
       shop,
       items: lineItems.map((lineItem) => ({
         name: lineItem.itemName,
-        description: lineItem.itemDescription,
+        description: buildInvoiceItemDescription(lineItem.itemName, lineItem.priceOption),
         unitPrice: parseFloat(lineItem.unitPrice),
         quantity: lineItem.quantity,
         amount: parseFloat(lineItem.subtotal),

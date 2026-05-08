@@ -53,6 +53,9 @@ const fetchDayMetrics = async (date: string): Promise<DayMetrics> => {
   return response.json() as Promise<DayMetrics>;
 };
 
+const formatItemPriceOptionLabel = (itemName: string, priceOption: string) =>
+  `${itemName} - ${priceOption} Rs Packet`;
+
 export default function Dashboard() {
   const { data: summary } = useGetDashboardSummary();
   const { data: salesOverTime } = useGetSalesOverTime();
@@ -432,7 +435,7 @@ export default function Dashboard() {
                     <TableHeader className="sticky top-0 z-10 bg-background/80 backdrop-blur">
                       <TableRow className="border-white/10">
                         <TableHead className="text-muted-foreground text-xs md:text-sm w-14 text-center">Rank</TableHead>
-                        <TableHead className="text-muted-foreground text-xs md:text-sm text-center">Item Name</TableHead>
+                        <TableHead className="text-muted-foreground text-xs md:text-sm text-center">Price Option</TableHead>
                         <TableHead className="text-muted-foreground text-xs md:text-sm text-center">Qty Sold</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -451,13 +454,15 @@ export default function Dashboard() {
                         </TableRow>
                       ) : (
                         loadChartData.map((item, index) => (
-                          <TableRow key={item.itemId} className="border-white/10 odd:bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                          <TableRow key={`${item.itemId}-${item.priceOption}`} className="border-white/10 odd:bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
                             <TableCell className="text-foreground text-xs md:text-sm text-center">
                               <span className="inline-flex min-w-6 h-6 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold">
                                 {index + 1}
                               </span>
                             </TableCell>
-                            <TableCell className="text-foreground text-xs md:text-sm font-medium text-center">{item.itemName}</TableCell>
+                            <TableCell className="text-foreground text-xs md:text-sm font-medium text-center">
+                              {formatItemPriceOptionLabel(item.itemName, item.priceOption)}
+                            </TableCell>
                             <TableCell className="text-foreground text-xs md:text-sm font-medium text-center">
                               <span className="inline-flex items-center rounded-md bg-emerald-500/15 text-emerald-400 px-2 py-0.5">
                                 {formatItemsWithDozens(item.quantitySold)}

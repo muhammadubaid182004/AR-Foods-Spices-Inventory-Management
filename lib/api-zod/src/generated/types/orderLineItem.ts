@@ -10,6 +10,7 @@ export interface OrderLineItem {
   id: number;
   itemId: number;
   itemName: string;
+  priceOption: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;

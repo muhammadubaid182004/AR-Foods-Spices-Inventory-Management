@@ -19,6 +19,7 @@ export const orderLineItemsTable = pgTable("order_line_items", {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").references(() => ordersTable.id, { onDelete: "cascade" }).notNull(),
   itemId: integer("item_id").references(() => itemsTable.id, { onDelete: "restrict" }).notNull(),
+  priceOption: text("price_option").notNull().default(""),
   quantity: serial("quantity").notNull(),
   unitPrice: text("unit_price").notNull(),
   subtotal: text("subtotal").notNull(),

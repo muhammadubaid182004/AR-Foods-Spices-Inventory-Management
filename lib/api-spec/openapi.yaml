@@ -178,7 +178,7 @@ paths:
     get:
       operationId: getLoadChart
       tags: [dashboard]
-      summary: Get items and quantities sold with optional month/year filters
+      summary: Get item price options and quantities sold with optional month/year filters
       security:
         - bearerAuth: []
       parameters:
@@ -196,7 +196,7 @@ paths:
           description: Year filter (e.g., 2026)
       responses:
         "200":
-          description: Load chart data with items and quantities sold
+          description: Load chart data with item price options and quantities sold
           content:
             application/json:
               schema:
@@ -740,11 +740,14 @@ components:
           type: integer
         itemName:
           type: string
+        priceOption:
+          type: string
         quantitySold:
           type: integer
       required:
         - itemId
         - itemName
+        - priceOption
         - quantitySold
 
     Region:
@@ -977,6 +980,8 @@ components:
           type: integer
         itemName:
           type: string
+        priceOption:
+          type: string
         quantity:
           type: integer
         unitPrice:
@@ -987,6 +992,7 @@ components:
         - id
         - itemId
         - itemName
+        - priceOption
         - quantity
         - unitPrice
         - subtotal
