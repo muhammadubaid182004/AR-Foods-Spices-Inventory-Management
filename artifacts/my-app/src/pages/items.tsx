@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, Plus, Pencil, Trash2 } from "lucide-react";
+import { Package, Plus, Pencil, Trash2, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type Item = {
@@ -379,7 +379,7 @@ export default function Items() {
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label className="text-foreground">Price Options (Integer key to integer unit price)</Label>
+                    <Label className="text-foreground">Price Options</Label>
                     {formPriceOptions.map((entry, index) => (
                       <div key={`create-price-option-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                         <Input
@@ -400,22 +400,28 @@ export default function Items() {
                           placeholder="Unit Price"
                           className="bg-background/50 border-white/10"
                         />
-                        <Button variant="outline" type="button" onClick={() => removePriceOptionEntry(index)}>
-                          Remove
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="outline" type="button" onClick={() => removePriceOptionEntry(index)} className="hidden sm:inline-flex">
+                            Remove
+                          </Button>
+                          <Button type="button" onClick={() => removePriceOptionEntry(index)} className="sm:hidden flex-1 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white border-0">
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
-                    <Button variant="outline" type="button" onClick={addPriceOptionEntry}>
+                    <Button variant="outline" type="button" onClick={addPriceOptionEntry} className="w-full mt-2">
+                      <Plus className="w-4 h-4 mr-2" />
                       Add Price Option
                     </Button>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-                  <Button onClick={handleCreate} disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Creating..." : "Create Item"}
-                  </Button>
-                </DialogFooter>
+                <DialogFooter className="flex-col gap-2 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+                <Button onClick={handleCreate} disabled={createMutation.isPending} className="w-full">
+                  {createMutation.isPending ? "Creating..." : "Create Item"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowCreateModal(false)} className="w-full">Cancel</Button>
+              </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
@@ -457,7 +463,7 @@ export default function Items() {
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label className="text-foreground">Price Options (Integer key to integer unit price)</Label>
+                    <Label className="text-foreground">Price Options</Label>
                     {formPriceOptions.map((entry, index) => (
                       <div key={`edit-price-option-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                         <Input
@@ -478,31 +484,33 @@ export default function Items() {
                           placeholder="Unit Price (Value) e.g. 8"
                           className="bg-background/50 border-white/10"
                         />
-                        <Button variant="outline" type="button" onClick={() => removePriceOptionEntry(index)}>
-                          Remove
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="outline" type="button" onClick={() => removePriceOptionEntry(index)} className="hidden sm:inline-flex">
+                            Remove
+                          </Button>
+                          <Button type="button" onClick={() => removePriceOptionEntry(index)} className="sm:hidden flex-1 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white border-0">
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
-                    <Button variant="outline" type="button" onClick={addPriceOptionEntry}>
+                    <Button variant="outline" type="button" onClick={addPriceOptionEntry} className="w-full mt-2">
+                      <Plus className="w-4 h-4 mr-2" />
                       Add Price Option
                     </Button>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditItem(null)}>Cancel</Button>
-                  {editItem.isActive === false && (
-                    <Button
-                      variant="outline"
-                      onClick={handleReactivate}
-                      disabled={isReactivating}
-                    >
-                      {isReactivating ? "Reactivating..." : "Reactivate Item"}
-                    </Button>
-                  )}
-                  <Button onClick={handleEdit} disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Updating..." : "Update Item"}
+                <DialogFooter className="flex-col gap-2 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+                <Button onClick={handleEdit} disabled={updateMutation.isPending} className="w-full">
+                  {updateMutation.isPending ? "Updating..." : "Update Item"}
+                </Button>
+                {editItem.isActive === false && (
+                  <Button variant="outline" onClick={handleReactivate} disabled={isReactivating} className="w-full">
+                    {isReactivating ? "Reactivating..." : "Reactivate Item"}
                   </Button>
-                </DialogFooter>
+                )}
+                <Button variant="outline" onClick={() => setEditItem(null)} className="w-full">Cancel</Button>
+              </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
