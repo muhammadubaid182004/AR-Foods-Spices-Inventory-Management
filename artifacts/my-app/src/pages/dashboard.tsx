@@ -158,6 +158,30 @@ export default function Dashboard() {
   };
 
   const formatCurrency = (val: number) => `₨${val.toLocaleString()}`;
+  const formatMonthYear = (value: string) => {
+    if (!value) return "";
+    const input = value.trim();
+
+    // Handles values like "2024-01", "2024-1", "2024-01-15".
+    const yearFirstMatch = input.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+    if (yearFirstMatch) {
+      const year = Number(yearFirstMatch[1]);
+      const monthIndex = Number(yearFirstMatch[2]) - 1;
+      if (monthIndex >= 0 && monthIndex <= 11) {
+        const monthShort = new Date(year, monthIndex, 1).toLocaleString("en-US", { month: "short" });
+        return `${monthShort}-${year}`;
+      }
+    }
+
+    const parsedDate = new Date(input);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      const monthShort = parsedDate.toLocaleString("en-US", { month: "short" });
+      const year = parsedDate.getFullYear();
+      return `${monthShort}-${year}`;
+    }
+
+    return input;
+  };
   const formatItemsWithDozens = (itemCount: number) => {
     const dozens = itemCount / 12;
     const formattedDozens =
@@ -509,7 +533,7 @@ export default function Dashboard() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                      <XAxis dataKey="month" {...axisProps} tickFormatter={(v) => v.slice(0, 3)} />
+                      <XAxis dataKey="month" {...axisProps} tickFormatter={(v: string) => formatMonthYear(v)} />
                       <YAxis {...axisProps} tickFormatter={(val) => `₨${val / 1000}k`} width={45} />
                       <Tooltip
                         {...tooltipStyle}
@@ -579,7 +603,7 @@ export default function Dashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={regionSalesDetail}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                        <XAxis dataKey="month" {...axisProps} tickFormatter={(v) => v.slice(0, 3)} />
+                        <XAxis dataKey="month" {...axisProps} tickFormatter={(v: string) => formatMonthYear(v)} />
                         <YAxis {...axisProps} tickFormatter={(val) => `₨${val / 1000}k`} width={45} />
                         <Tooltip
                           {...tooltipStyle}
