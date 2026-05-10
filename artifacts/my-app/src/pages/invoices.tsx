@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -12,6 +13,7 @@ import { motion } from "framer-motion";
 import { Download, ReceiptText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
+import { useMemo, useState } from "react";
 
 type Invoice = {
   orderId: number;
@@ -50,13 +52,35 @@ const downloadInvoice = async (orderId: number) => {
 };
 
 export default function Invoices() {
+  const [searchText, setSearchText] = useState("");
+
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["invoices-list"],
     queryFn: () => customFetch<Invoice[]>("/api/invoices", { method: "GET" }),
   });
-  const sortedInvoices = [...invoices].sort(
-    (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime(),
+  const sortedInvoices = useMemo(
+    () =>
+      [...invoices].sort(
+        (a, b) => new Date(b.placedAt).getTime() - new Date(a.placedAt).getTime(),
+      ),
+    [invoices],
   );
+
+  const filteredInvoices = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) return sortedInvoices;
+
+    return sortedInvoices.filter((invoice) => {
+      const amount = String(invoice.totalPrice);
+      return (
+        invoice.shop.toLowerCase().includes(query) ||
+        invoice.region.toLowerCase().includes(query) ||
+        invoice.orderNumber.toLowerCase().includes(query) ||
+        String(invoice.orderId).includes(query) ||
+        amount.includes(query)
+      );
+    });
+  }, [searchText, sortedInvoices]);
 
   return (
     <Layout>
@@ -76,6 +100,15 @@ export default function Invoices() {
           </div>
         </motion.div>
 
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search by shop, region, amount, order id"
+            className="bg-background/50 border-white/10"
+          />
+        </div>
+
         <div className="hidden md:block rounded-xl border border-white/10 bg-card/40 overflow-hidden">
           <Table>
             <TableHeader>
@@ -89,7 +122,7 @@ export default function Invoices() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedInvoices.map((invoice) => (
+              {filteredInvoices.map((invoice) => (
                 <TableRow key={invoice.orderNumber} className="border-white/10">
                   <TableCell className="font-medium text-center">{invoice.orderNumber}</TableCell>
                   <TableCell className="text-center">{invoice.region}</TableCell>
@@ -113,7 +146,7 @@ export default function Invoices() {
         </div>
 
         <div className="md:hidden space-y-3">
-          {sortedInvoices.map((invoice) => (
+          {filteredInvoices.map((invoice) => (
             <div
               key={invoice.orderNumber}
               className="rounded-xl border border-white/10 bg-card/40 p-4 space-y-2"
@@ -139,7 +172,7 @@ export default function Invoices() {
             </div>
           ))}
         </div>
-        {!isLoading && sortedInvoices.length === 0 && (
+        {!isLoading && filteredInvoices.length === 0 && (
           <div className="text-sm text-muted-foreground">No invoices found.</div>
         )}
       </div>
