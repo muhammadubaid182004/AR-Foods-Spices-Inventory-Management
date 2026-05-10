@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { access } from "node:fs/promises";
-import { db, ordersTable, orderLineItemsTable, itemsTable, distributorsTable, shopsTable, invoicesTable } from "@workspace/db";
+import { db, ordersTable, orderLineItemsTable, itemsTable, distributorsTable, shopsTable, invoicesTable, regionsTable } from "@workspace/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth-middleware";
 import { generateInvoicePdf, type InvoicePayload } from "../lib/generate-invoice";
@@ -214,6 +214,34 @@ router.get("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void>
     createdAt: formatDateToISO(r.placedAt),
     itemCount: parseInt(r.itemCount ?? "0", 10),
   })));
+});
+
+router.get("/invoices", requireAuth, async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({
+      orderId: ordersTable.id,
+      regionName: regionsTable.name,
+      shopName: shopsTable.name,
+      totalAmount: ordersTable.totalAmount,
+      placedAt: ordersTable.placedAt,
+      status: ordersTable.status,
+    })
+    .from(ordersTable)
+    .innerJoin(shopsTable, eq(shopsTable.id, ordersTable.shopId))
+    .innerJoin(regionsTable, eq(regionsTable.id, shopsTable.regionId))
+    .orderBy(sql`${ordersTable.placedAt} DESC`);
+
+  res.json(
+    rows.map((row) => ({
+      orderId: row.orderId,
+      orderNumber: `ORDER-${row.orderId.toString().padStart(6, "0")}`,
+      region: row.regionName,
+      shop: row.shopName,
+      totalPrice: parseFloat(row.totalAmount),
+      placedAt: formatDateToISO(row.placedAt),
+      status: row.status,
+    })),
+  );
 });
 
 router.post("/shops/:shopId/orders", requireAuth, async (req, res): Promise<void> => {

@@ -158,6 +158,12 @@ export default function Dashboard() {
   };
 
   const formatCurrency = (val: number) => `₨${val.toLocaleString()}`;
+  const formatDozens = (itemCount: number) => {
+    const dozens = itemCount / 12;
+    return Number.isInteger(dozens)
+      ? dozens.toLocaleString()
+      : dozens.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  };
   const formatMonthYear = (value: string) => {
     if (!value) return "";
     const input = value.trim();
@@ -219,7 +225,7 @@ export default function Dashboard() {
     },
     {
       label: "Units Moved",
-      value: summary ? summary.totalItemsSold.toLocaleString() : "—",
+      value: summary ? formatDozens(summary.totalItemsSold) : "—",
       icon: Package,
       bg: "bg-blue-500/20",
       color: "text-blue-500",
@@ -273,6 +279,9 @@ export default function Dashboard() {
                 <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-3 md:pb-2 md:pt-6 md:px-6">
                   <CardTitle className="text-[10px] md:text-sm font-medium text-muted-foreground uppercase tracking-wider leading-tight">
                     {label}
+                    {label.includes("Units Moved") && (
+                      <span className="ml-1 text-[9px] md:text-[11px] normal-case tracking-normal">(dozens)</span>
+                    )}
                   </CardTitle>
                   <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full ${bg} flex items-center justify-center shrink-0`}>
                     <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${color}`} />
@@ -305,7 +314,7 @@ export default function Dashboard() {
             },
             {
               label: "Units Moved Today",
-              value: todayMetrics ? todayMetrics.unitsMoved.toLocaleString() : "—",
+              value: todayMetrics ? formatDozens(todayMetrics.unitsMoved) : "—",
               icon: Package,
               bg: "bg-cyan-500/20",
               color: "text-cyan-400",
@@ -319,7 +328,7 @@ export default function Dashboard() {
             },
             {
               label: "Units Moved Yesterday",
-              value: yesterdayMetrics ? yesterdayMetrics.unitsMoved.toLocaleString() : "—",
+              value: yesterdayMetrics ? formatDozens(yesterdayMetrics.unitsMoved) : "—",
               icon: Package,
               bg: "bg-indigo-500/20",
               color: "text-indigo-400",
@@ -330,6 +339,9 @@ export default function Dashboard() {
                 <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-3 md:pb-2 md:pt-6 md:px-6">
                   <CardTitle className="text-[10px] md:text-sm font-medium text-muted-foreground uppercase tracking-wider leading-tight">
                     {label}
+                    {label.includes("Units Moved") && (
+                      <span className="ml-1 text-[9px] md:text-[11px] normal-case tracking-normal">(dozens)</span>
+                    )}
                   </CardTitle>
                   <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full ${bg} flex items-center justify-center shrink-0`}>
                     <Icon className={`w-3.5 h-3.5 md:w-4 md:h-4 ${color}`} />
@@ -377,9 +389,11 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-background/30 p-3">
-                      <p className="text-[11px] md:text-xs uppercase tracking-wider text-muted-foreground">Units Moved</p>
+                      <p className="text-[11px] md:text-xs uppercase tracking-wider text-muted-foreground">
+                        Units Moved <span className="normal-case text-[10px] md:text-[11px]">(dozens)</span>
+                      </p>
                       <p className="text-lg md:text-2xl font-semibold text-foreground">
-                        {selectedDateMetrics ? selectedDateMetrics.unitsMoved.toLocaleString() : "—"}
+                        {selectedDateMetrics ? formatDozens(selectedDateMetrics.unitsMoved) : "—"}
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-background/30 p-3">

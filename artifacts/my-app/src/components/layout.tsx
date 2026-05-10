@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Building2, Package, LogOut } from "lucide-react";
+import { LayoutDashboard, Building2, Package, ReceiptText, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface LayoutProps {
@@ -19,6 +19,7 @@ export function Layout({ children }: LayoutProps) {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/invoices", label: "Invoices", icon: ReceiptText },
     { href: "/management", label: "Management", icon: Building2 },
     { href: "/items", label: "Items", icon: Package },
   ];
