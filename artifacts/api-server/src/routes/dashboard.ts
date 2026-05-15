@@ -101,9 +101,10 @@ router.get("/dashboard/region-sales-detail", requireAuth, async (req, res): Prom
 });
 
 router.get("/dashboard/load-chart", requireAuth, async (req, res): Promise<void> => {
-  const { month, year } = req.query;
+  const { month, year, date } = req.query;
   const monthNum = month ? Number.parseInt(month as string, 10) : undefined;
   const yearNum = year ? Number.parseInt(year as string, 10) : undefined;
+  const dateStr = typeof date === "string" ? date : "";
   const priceOptionExpr = sql<string>`NULLIF(${orderLineItemsTable.priceOption}, '')`;
 
   const query = db
@@ -123,7 +124,14 @@ router.get("/dashboard/load-chart", requireAuth, async (req, res): Promise<void>
       priceOptionExpr,
     );
 
-  if (yearNum && monthNum && monthNum >= 1 && monthNum <= 12) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const start = new Date(`${dateStr}T00:00:00.000Z`);
+    if (!Number.isNaN(start.getTime())) {
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 1);
+      query.where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));
+    }
+  } else if (yearNum && monthNum && monthNum >= 1 && monthNum <= 12) {
     const start = new Date(Date.UTC(yearNum, monthNum - 1, 1));
     const end = new Date(Date.UTC(yearNum, monthNum, 1));
     query.where(and(gte(ordersTable.placedAt, start), lt(ordersTable.placedAt, end)));

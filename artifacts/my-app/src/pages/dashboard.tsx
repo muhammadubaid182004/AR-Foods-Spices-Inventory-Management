@@ -34,6 +34,12 @@ const toDateInputValue = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
+const formatDateDisplay = (isoDate: string): string => {
+  const [y, m, d] = isoDate.split("-");
+  if (!y || !m || !d) return isoDate;
+  return `${d}/${m}/${y}`;
+};
+
 const fetchDayMetrics = async (date: string): Promise<DayMetrics> => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
   const endpoint = `/api/dashboard/day-metrics?date=${encodeURIComponent(date)}`;
@@ -64,9 +70,13 @@ export default function Dashboard() {
   const { data: regions } = useGetRegions();
 
   const [selectedRegionId, setSelectedRegionId] = useState<string>("");
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(toDateInputValue(new Date()));
+
+  type LoadChartFilter = "day" | "month" | "year" | "all";
+  const [loadChartFilter, setLoadChartFilter] = useState<LoadChartFilter>("day");
+  const [loadChartDate, setLoadChartDate] = useState<string>(toDateInputValue(new Date()));
+  const [loadChartMonth, setLoadChartMonth] = useState<string>(String(new Date().getMonth() + 1));
+  const [loadChartYear, setLoadChartYear] = useState<string>(String(new Date().getFullYear()));
 
   const today = toDateInputValue(new Date());
   const yesterdayDate = new Date();
@@ -98,15 +108,6 @@ export default function Dashboard() {
     { query: { enabled: !!selectedRegionId } }
   );
 
-  const {
-    data: loadChartData,
-    isLoading: isLoadChartLoading,
-    isFetching: isLoadChartFetching,
-  } = useGetLoadChart({
-    month: selectedMonth && selectedMonth !== "all" ? parseInt(selectedMonth) : undefined,
-    year: selectedYear && selectedYear !== "all" ? parseInt(selectedYear) : undefined,
-  });
-
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   const months = [
@@ -123,6 +124,30 @@ export default function Dashboard() {
     { value: "11", label: "November" },
     { value: "12", label: "December" },
   ];
+
+  const loadChartParams =
+    loadChartFilter === "day"
+      ? { date: loadChartDate }
+      : loadChartFilter === "month"
+        ? { month: parseInt(loadChartMonth, 10), year: parseInt(loadChartYear, 10) }
+        : loadChartFilter === "year"
+          ? { year: parseInt(loadChartYear, 10) }
+          : undefined;
+
+  const {
+    data: loadChartData,
+    isLoading: isLoadChartLoading,
+    isFetching: isLoadChartFetching,
+  } = useGetLoadChart(loadChartParams);
+
+  const loadChartFilterLabel =
+    loadChartFilter === "day"
+      ? formatDateDisplay(loadChartDate)
+      : loadChartFilter === "month"
+        ? `${months.find((m) => m.value === loadChartMonth)?.label ?? loadChartMonth} ${loadChartYear}`
+        : loadChartFilter === "year"
+          ? loadChartYear
+          : "All Time";
 
   useEffect(() => {
     if (!regions || regions.length === 0) return;
@@ -418,56 +443,82 @@ export default function Dashboard() {
         >
           <motion.div variants={itemVars}>
             <Card className="bg-card/40 border-white/5 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 pt-4 pb-2 md:px-6 md:pt-6">
-                <CardTitle className="text-sm md:text-lg font-medium text-foreground whitespace-nowrap">
-                  Load Chart
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Select value={selectedMonth || "all"} onValueChange={(v) => setSelectedMonth(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[120px] md:w-[140px] bg-background/50 border-white/10 text-xs md:text-sm h-8 md:h-10">
-                      <SelectValue placeholder="All Months" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Months</SelectItem>
-                      {months.map((m) => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={selectedYear || "all"} onValueChange={(v) => setSelectedYear(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[100px] md:w-[120px] bg-background/50 border-white/10 text-xs md:text-sm h-8 md:h-10">
-                      <SelectValue placeholder="All Years" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Years</SelectItem>
-                      {years.map((y) => (
-                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedMonth("");
-                      setSelectedYear("");
-                    }}
-                    className="h-8 md:h-10 px-3 rounded-md border border-white/10 bg-background/50 text-xs md:text-sm text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors"
-                  >
-                    Reset
-                  </button>
+              <CardHeader className="flex flex-col gap-3 px-4 pt-4 pb-2 md:px-6 md:pt-6">
+                <div className="flex flex-row items-center justify-between gap-2">
+                  <CardTitle className="text-sm md:text-lg font-medium text-foreground whitespace-nowrap">
+                    Load Chart
+                  </CardTitle>
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {(["day", "month", "year", "all"] as const).map((filter) => (
+                      <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setLoadChartFilter(filter)}
+                      className={`h-8 md:h-9 px-2.5 md:px-3 rounded-md border text-xs md:text-sm transition-colors ${
+                        loadChartFilter === filter
+                          ? "border-primary/60 bg-primary/20 text-foreground"
+                          : "border-white/10 bg-background/50 text-muted-foreground hover:text-foreground hover:border-white/20"
+                      }`}
+                    >
+                        {filter === "day" ? "Day" : filter === "month" ? "Month" : filter === "year" ? "Year" : "All Time"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                {loadChartFilter !== "all" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {loadChartFilter === "month" && (
+                    <>
+                      <Select value={loadChartMonth} onValueChange={setLoadChartMonth}>
+                        <SelectTrigger className="w-[120px] md:w-[140px] bg-background/50 border-white/10 text-xs md:text-sm h-8 md:h-10">
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={loadChartYear} onValueChange={setLoadChartYear}>
+                        <SelectTrigger className="w-[100px] md:w-[120px] bg-background/50 border-white/10 text-xs md:text-sm h-8 md:h-10">
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {years.map((y) => (
+                            <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
+                  {loadChartFilter === "year" && (
+                    <Select value={loadChartYear} onValueChange={setLoadChartYear}>
+                      <SelectTrigger className="w-[100px] md:w-[120px] bg-background/50 border-white/10 text-xs md:text-sm h-8 md:h-10">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {years.map((y) => (
+                          <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {loadChartFilter === "day" && (
+                    <input
+                      type="date"
+                      value={loadChartDate}
+                      onChange={(e) => setLoadChartDate(e.target.value)}
+                      className="h-8 md:h-10 rounded-md border border-white/20 bg-slate-900 px-3 text-xs md:text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/60"
+                    />
+                  )}
+                </div>
+                )}
               </CardHeader>
               <CardContent className="px-1 md:px-4 pb-4">
-                {(selectedMonth || selectedYear) && (
-                  <div className="px-3 md:px-1 pb-2 text-[11px] md:text-xs text-muted-foreground">
-                    Showing results for{" "}
-                    <span className="text-foreground font-medium">
-                      {selectedMonth ? months.find((m) => m.value === selectedMonth)?.label : "All Months"}
-                    </span>
-                    {" / "}
-                    <span className="text-foreground font-medium">{selectedYear || "All Years"}</span>
-                  </div>
-                )}
+                <div className="px-3 md:px-1 pb-2 text-[11px] md:text-xs text-muted-foreground">
+                  Showing results for{" "}
+                  <span className="text-foreground font-medium">{loadChartFilterLabel}</span>
+                </div>
                 <div className="max-h-[280px] md:max-h-[320px] overflow-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent hover:scrollbar-thumb-white/20">
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background/80 backdrop-blur">
@@ -487,7 +538,7 @@ export default function Dashboard() {
                       ) : !loadChartData || loadChartData.length === 0 ? (
                         <TableRow className="border-white/10">
                           <TableCell colSpan={3} className="text-center text-muted-foreground text-xs md:text-sm py-8">
-                            No sales data for this filter. Try selecting another month/year.
+                            No sales data for this filter. Try another date or time range.
                           </TableCell>
                         </TableRow>
                       ) : (

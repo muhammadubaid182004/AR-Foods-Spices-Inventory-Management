@@ -109,6 +109,7 @@ export const GetRegionSalesDetailResponse = zod.array(GetRegionSalesDetailRespon
  * @summary Get items and quantities sold with optional month/year filters
  */
 export const GetLoadChartQueryParams = zod.object({
+  "date": zod.string().date().optional().describe('Day filter (YYYY-MM-DD)'),
   "month": zod.coerce.number().optional().describe('Month filter (1-12)'),
   "year": zod.coerce.number().optional().describe('Year filter (e.g., 2026)')
 })

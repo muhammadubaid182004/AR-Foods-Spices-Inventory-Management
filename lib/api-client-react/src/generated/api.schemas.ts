@@ -217,6 +217,10 @@ regionId: number;
 
 export type GetLoadChartParams = {
 /**
+ * Day filter (YYYY-MM-DD)
+ */
+date?: string;
+/**
  * Month filter (1-12)
  */
 month?: number;

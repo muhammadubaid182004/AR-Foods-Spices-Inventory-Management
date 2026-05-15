@@ -178,10 +178,17 @@ paths:
     get:
       operationId: getLoadChart
       tags: [dashboard]
-      summary: Get item price options and quantities sold with optional month/year filters
+      summary: Get item price options and quantities sold with optional date/month/year filters
       security:
         - bearerAuth: []
       parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Day filter (YYYY-MM-DD)
         - name: month
           in: query
           required: false
